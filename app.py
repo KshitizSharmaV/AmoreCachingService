@@ -39,7 +39,6 @@ def get_profiles_by_ids():
     cursor = amoreCacheDB["Profiles"].find({"_id":{"$in" : profileIdList}})
     # Iterate over the mongo cursor
     responseData = [json.dumps(doc, default=json_util.default) for doc in cursor]
-    
     # Check if profile is missing from the response data, means profile not in cache
     if len(profileIdList) != len(responseData) :
         # Oh oh - Looks like profile is missing from cache. 
@@ -47,7 +46,6 @@ def get_profiles_by_ids():
         future = run_coroutine(load_profiles_to_mongo_from_firebase(profilesNotInCache=profilesNotInCache))
         newProfilesCached = future.result()
         responseData.extend(newProfilesCached)
-    
     return json.dumps(responseData, indent=4, sort_keys=True, default=str)
 
 def get_profiles_not_in_cache(profileIdList=None):
@@ -56,10 +54,8 @@ def get_profiles_not_in_cache(profileIdList=None):
 
 async def load_profiles_to_mongo_from_firebase(profilesNotInCache=None):
     logger.warning(f'{len(profilesNotInCache)} profiles were not found in cache')
-    newProfilesCached =  await asyncio.gather(*[write_to_cache_after_read(profileId=profileId,
-                                                                    amoreCacheDB=amoreCacheDB,
-                                                                    logger=logger,
-                                                                    async_db=async_db) for profileId in profilesNotInCache])
+    newProfilesCached =  await asyncio.gather(*[write_to_cache_after_read(profileId=profileId,amoreCacheDB=amoreCacheDB,
+                                                                    logger=logger, async_db=async_db) for profileId in profilesNotInCache])
     newProfilesCached = [profile for profile in newProfilesCached if profile is not None]
     return newProfilesCached
 
