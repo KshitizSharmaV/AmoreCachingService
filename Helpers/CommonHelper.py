@@ -35,11 +35,6 @@ async def write_one_profile_to_cache_after_firebase_read(profileId=None, redisCl
         logger.error(traceback.format_exc())
         logger.error(f"{profileId}: Failed to fetch profile from FirStore")
         return
-    
-def get_profiles_not_in_cache(profileIdList=None,redisClient=None):
-    allCachedProfileIds = get_cached_profile_ids(redisClient=redisClient)
-    allCachedProfileIds = [id.replace("Profiles:","") for id in allCachedProfileIds]
-    return list(set(profileIdList)-set(allCachedProfileIds))
 
 # function accepts multiple Profile IDs
 async def load_profiles_to_cache_from_firebase(profileIdsNotInCache=None, redisClient=None, logger=None, async_db=None):
@@ -49,8 +44,13 @@ async def load_profiles_to_cache_from_firebase(profileIdsNotInCache=None, redisC
     newProfilesCached = [profile for profile in newProfilesCached if profile is not None]
     return newProfilesCached
 
+
+def get_profiles_not_in_cache(profileIdList=None,redisClient=None):
+    allCachedProfileIds = get_cached_profile_ids(redisClient=redisClient)
+    allCachedProfileIds = [id.replace("Profiles:","") for id in allCachedProfileIds]
+    return list(set(profileIdList)-set(allCachedProfileIds))
+
 def get_cached_profile_ids(redisClient=None):
-    # dataCursor, profileIdsInCache = redisClient.scan(match='Profiles:*')
     profileIdsInCache = redisClient.keys()
     return profileIdsInCache
 

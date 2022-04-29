@@ -34,7 +34,6 @@ async def main():
     newProfilesCached = future.result()
     return
     
-
 # Argument Passing For How Often should the file run? Per Minute
 if __name__ == '__main__':
     # Check Logic: See if there are Any profiles with key "Profiles:*" already in cache
