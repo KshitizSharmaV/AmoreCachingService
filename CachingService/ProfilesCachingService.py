@@ -12,7 +12,7 @@ import logging
 import asyncio
 from google.cloud import firestore
 from ProjectConf.FirestoreConf import db, async_db # Firestore
-from ProjectConf.MongoDBConf import mongoClient, amoreCacheDB # MongoDB
+from ProjectConf.ReddisConf import redisClient
 from Helpers.CommonHelper import write_to_cache
 import json
 
@@ -28,16 +28,20 @@ logger.addHandler( logHandler )
 logger.setLevel( logging.INFO )
 
 async def main():
-    # Firestore - Querying updated profiles only
-    query = async_db.collection("Profiles").where(u'wasProfileUpdated', u'==',True)
-    docs = await query.get()
-    logger.info(f"Updating {len(docs)} profiles in cache")
+    dataCursor, profileIdsInCache = redisClient.scan(match='Profiles:*')
+    # Script checks if cache is being loaded for first time 
+    queryOn = 'isProfileActive' if len(profileIdsInCache) == 0 else 'wasProfileUpdated'
+    query = async_db.collection("Profiles").where(queryOn, u'==',True)
+    allProfiles = await query.get()
+    logger.info(f"Updating Cache with {len(allProfiles)} profiles")
     # Writing the profiles to cache
-    _ =  await asyncio.gather(*[write_to_cache(profile={"_id": profile.id, **profile.to_dict()},
-                                                amoreCacheDB=amoreCacheDB,
+    _ =  await asyncio.gather(*[write_to_cache(profile={"id": profile.id, **profile.to_dict()},
+                                                redisClient=redisClient,
                                                 logger=logger,
-                                                async_db=async_db) for profile in docs])
+                                                async_db=async_db) for profile in allProfiles])                                                
 
 # Argument Passing For How Often should the file run? Per Minute
 if __name__ == '__main__':
-    asyncio.run(main())
+    # Check Logic: See if there are Any profiles with key "Profiles:*" already in cache
+    asyncio.run((main()))
+    
