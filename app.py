@@ -14,7 +14,7 @@ import asyncio
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from ProjectConf.AsyncioPlugin import run_coroutine
-from Helpers.CommonHelper import write_profiles_to_cache_after_read
+from Helpers.CommonHelper import write_one_profile_to_cache_after_firebase_read, load_profiles_to_cache_from_firebase, get_profiles_not_in_cache, get_cached_profile_ids, fresh_load_balances
 
 app = Flask(__name__)
 
@@ -40,38 +40,28 @@ def get_profiles_by_ids():
     # Iterate over the cached profiles cursor
     responseData = [json.loads(profile) for profile in cursor if profile]
     # Check if profile is missing from the response data, means profile not in cache
-    logger.info(f"{len(responseData)} profiles were fetched from cache")
+    logger.info(f"{len(responseData)} Profiles were fetched from cache")
     if len(profileIdCachedKeys) != len(responseData) :
         # Oh oh - Looks like profile is missing from cache. 
-        profilesNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList)
-        future = run_coroutine(load_profiles_to_cache_from_firebase(profilesNotInCache=profilesNotInCache))
+        profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList,redisClient=redisClient)
+        future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,redisClient=redisClient, logger=logger, async_db=async_db))
         newProfilesCached = future.result()
         responseData.extend(newProfilesCached)
     return json.dumps(responseData, indent=4, sort_keys=True, default=str)
 
-def get_profiles_not_in_cache(profileIdList=None):
-    allCachedProfileIds = get_cached_profile_ids()
-    allCachedProfileIds = [id.replace("Profiles:","") for id in allCachedProfileIds]
-    return list(set(profileIdList)-set(allCachedProfileIds))
-
-async def load_profiles_to_cache_from_firebase(profilesNotInCache=None):
-    logger.warning(f'{len(profilesNotInCache)} profiles not found in cache')
-    newProfilesCached =  await asyncio.gather(*[write_profiles_to_cache_after_read(profileId=profileId,redisClient=redisClient,
-                                                                    logger=logger, async_db=async_db) for profileId in profilesNotInCache])
-    newProfilesCached = [profile for profile in newProfilesCached if profile is not None]
-    return newProfilesCached
 
 # Get All the profile IDs
 @app.route('/getcachedprofileids', methods=['GET'])
 def get_cached_profile_ids_route():
-    cachedProfileIds = get_cached_profile_ids()
+    cachedProfileIds = get_cached_profile_ids(redisClient=redisClient)
+    if len(cachedProfileIds) == 0:
+        future = run_coroutine(fresh_load_balances(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="get_cached_profile_ids_route api"))
+        newProfilesCached = future.result()
+        return 
     responseData = [id.replace("Profiles:","") for id in cachedProfileIds]
+    logger.info(f"{len(responseData)} Profile Ids were fetched from cache")
     return json.dumps(responseData)
 
-def get_cached_profile_ids():
-    # dataCursor, profileIdsInCache = redisClient.scan(match='Profiles:*')
-    profileIdsInCache = redisClient.keys()
-    return profileIdsInCache
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8800, debug=True)

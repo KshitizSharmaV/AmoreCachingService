@@ -13,7 +13,8 @@ import asyncio
 from google.cloud import firestore
 from ProjectConf.FirestoreConf import db, async_db # Firestore
 from ProjectConf.ReddisConf import redisClient
-from Helpers.CommonHelper import write_to_cache
+from Helpers.CommonHelper import write_one_profile_to_cache, fresh_load_balances
+from ProjectConf.AsyncioPlugin import run_coroutine
 import json
 
 # Log Settings
@@ -27,18 +28,12 @@ logger = logging.getLogger(f'Logs/AmoreCachingService/{LOG_FILENAME}')
 logger.addHandler( logHandler )
 logger.setLevel( logging.INFO )
 
+
 async def main():
-    dataCursor, profileIdsInCache = redisClient.scan(match='Profiles:*')
-    # Script checks if cache is being loaded for first time 
-    queryOn = 'isProfileActive' if len(profileIdsInCache) == 0 else 'wasProfileUpdated'
-    query = async_db.collection("Profiles").where(queryOn, u'==',True)
-    allProfiles = await query.get()
-    logger.info(f"Updating Cache with {len(allProfiles)} profiles")
-    # Writing the profiles to cache
-    _ =  await asyncio.gather(*[write_to_cache(profile={"id": profile.id, **profile.to_dict()},
-                                                redisClient=redisClient,
-                                                logger=logger,
-                                                async_db=async_db) for profile in allProfiles])                                                
+    future = run_coroutine(fresh_load_balances(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="ProfileCachingService service"))
+    newProfilesCached = future.result()
+    return
+    
 
 # Argument Passing For How Often should the file run? Per Minute
 if __name__ == '__main__':
