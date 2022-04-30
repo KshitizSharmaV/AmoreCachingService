@@ -5,19 +5,23 @@ import json
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
-from Helpers.CommonHelper import get_cached_profile_ids, fresh_load_balances
+from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 import logging
+import asyncio
+import traceback
 
 app_set = Blueprint('appSet', __name__)
 logger = logging.getLogger()
 
 @current_app.route('/storeprofilegradingscore', methods=['GET'])
 def store_profile_grading_score():
-    cachedProfileIds = get_cached_profile_ids(redisClient=redisClient)
-    if len(cachedProfileIds) == 0:
-        future = run_coroutine(fresh_load_balances(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="get_cached_profile_ids_route api"))
+    try:
+        normalizedAllProfileScoresDf = None
+        future = run_coroutine(store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,redisClient=redisClient, logger=logger, async_db=async_db))
         newProfilesCached = future.result()
-        return 
-    responseData = [id.replace("Profiles:","") for id in cachedProfileIds]
-    logger.info(f"{len(responseData)} Profile Ids were fetched from cache")
-    return json.dumps(responseData)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to write grading scores to firestore or cache")
+        logger.error(traceback.format_exc())
+        logger.exception(traceback.format_exc())
+        return False

@@ -13,7 +13,7 @@ import asyncio
 from google.cloud import firestore
 from ProjectConf.FirestoreConf import db, async_db # Firestore
 from ProjectConf.ReddisConf import redisClient
-from Helpers.CommonHelper import write_one_profile_to_cache, fresh_load_balances
+from Gateways.ProfilesGateway import write_one_profile_to_cache, all_fresh_profiles_load
 from ProjectConf.AsyncioPlugin import run_coroutine
 import json
 
@@ -30,12 +30,11 @@ logger.setLevel( logging.INFO )
 
 
 async def main():
-    future = run_coroutine(fresh_load_balances(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="ProfileCachingService service"))
+    future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="ProfileCachingService service"))
     newProfilesCached = future.result()
     return
     
 # Argument Passing For How Often should the file run? Per Minute
 if __name__ == '__main__':
-    # Check Logic: See if there are Any profiles with key "Profiles:*" already in cache
     asyncio.run((main()))
     
