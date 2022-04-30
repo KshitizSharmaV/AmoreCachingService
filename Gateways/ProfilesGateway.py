@@ -46,17 +46,18 @@ async def load_profiles_to_cache_from_firebase(profileIdsNotInCache=None, redisC
 
 
 def get_profiles_not_in_cache(profileIdList=None,redisClient=None):
-    allCachedProfileIds = get_cached_profile_ids(redisClient=redisClient)
+    allCachedProfileIds = get_cached_profile_ids(redisClient=redisClient,
+                                                cacheFilterName="Profiles")
     allCachedProfileIds = [id.replace("Profiles:","") for id in allCachedProfileIds]
     return list(set(profileIdList)-set(allCachedProfileIds))
 
-def get_cached_profile_ids(redisClient=None):
-    profileIdsInCache = redisClient.keys()
+def get_cached_profile_ids(redisClient=None, cacheFilterName=None):
+    profileIdsInCache = [key for key in redisClient.scan_iter(f"{cacheFilterName}:*")]
     return profileIdsInCache
 
 async def all_fresh_profiles_load(redisClient=None, logger=None, async_db=None, callFrom=None):
-    dataCursor, profileIdsInCache = redisClient.scan(match='Profiles:*')
-    # Script checks if cache is being loaded for first time 
+    profileIdsInCache =  get_cached_profile_ids(redisClient=redisClient,
+                                                cacheFilterName="Profiles")
     if len(profileIdsInCache) == 0:
         queryOn = 'isProfileActive' 
         logger.info(f"Fresh profile load into firestore was initiated. Initiated by: {callFrom}")

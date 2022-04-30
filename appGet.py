@@ -34,27 +34,29 @@ def get_profiles_by_ids():
         return json.dumps(responseData, indent=4, sort_keys=True, default=str)
     except Exception as e:
         logger.error(f"Failed to fetch profiles from gateway")
-        logger.error(traceback.format_exc())
-        logger.exception(traceback.format_exc())
+        logger.exception(e)
         return False
 
 # Get All the profile IDs
 @current_app.route('/getcachedprofileids', methods=['GET'])
 def get_cached_profile_ids_route():
     try:
-        cachedProfileIds = get_cached_profile_ids(redisClient=redisClient)
+        # Get the cacheFilterName
+        cacheFilterName = request.get_json().get('cacheFilterName')
+        cachedProfileIds = get_cached_profile_ids(redisClient=redisClient, 
+                                                  cacheFilterName=cacheFilterName)
         if len(cachedProfileIds) == 0:
             future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="get_cached_profile_ids_route api"))
             newProfilesCached = future.result()
-            return 
+            cachedProfileIds = get_cached_profile_ids(redisClient=redisClient, 
+                                                  cacheFilterName=cacheFilterName)
         responseData = [id.replace("Profiles:","") for id in cachedProfileIds]
         logger.info(f"{len(responseData)} Profile Ids were fetched from cache")
         return json.dumps(responseData)
     except Exception as e:
         logger.error(f"Failed to get the cached user ids from gateway")
-        logger.error(traceback.format_exc())
-        logger.exception(traceback.format_exc())
-        return False
+        logger.exception(e)
+        return json.dumps({'status':False})
 
 
 

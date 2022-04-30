@@ -9,19 +9,26 @@ from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_rout
 import logging
 import asyncio
 import traceback
+import pandas as pd
 
 app_set = Blueprint('appSet', __name__)
 logger = logging.getLogger()
 
-@current_app.route('/storeprofilegradingscore', methods=['GET'])
+@current_app.route('/storeprofilegradingscore', methods=['POST'])
 def store_profile_grading_score():
     try:
-        normalizedAllProfileScoresDf = None
-        future = run_coroutine(store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,redisClient=redisClient, logger=logger, async_db=async_db))
+        # Get the json object of the graded profiles
+        normalizedAllProfileScoresDf = request.get_json().get('normalizedAllProfileScoresDf')
+        normalizedAllProfileScoresDf = pd.DataFrame(normalizedAllProfileScoresDf)
+        logger.info("Received new grading scores to be stored to firestore and cache")
+        logger.info(normalizedAllProfileScoresDf)
+        future = run_coroutine(store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
+                                                                        redisClient=redisClient, 
+                                                                        logger=logger, 
+                                                                        async_db=async_db))
         newProfilesCached = future.result()
-        return True
+        return json.dumps({"status":True})
     except Exception as e:
         logger.error(f"Failed to write grading scores to firestore or cache")
-        logger.error(traceback.format_exc())
-        logger.exception(traceback.format_exc())
-        return False
+        logger.exception(e)
+        return json.dumps({"status":False})
