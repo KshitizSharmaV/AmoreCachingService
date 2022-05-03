@@ -30,9 +30,14 @@ logger.setLevel( logging.INFO )
 
 
 async def main():
-    future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="ProfileCachingService service"))
-    newProfilesCached = future.result()
-    return
+    try:
+        future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="ProfileCachingService service"))
+        newProfilesCached = future.result()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to kick start ProfileCachingService")
+        logger.exception(e)
+        return 
     
 # Argument Passing For How Often should the file run? Per Minute
 if __name__ == '__main__':

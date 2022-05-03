@@ -37,7 +37,8 @@ def get_profiles_by_ids():
         logger.exception(e)
         return False
 
-# Get All the profile IDs
+# Get the profiles ids which are store in cache. 
+# Assumption: All the active profiles in firestore are in Redis cache to. - Run the ProfilesCachingService to refersh all profiles automatically
 @current_app.route('/getcachedprofileids', methods=['GET'])
 def get_cached_profile_ids_route():
     try:
@@ -57,7 +58,5 @@ def get_cached_profile_ids_route():
         logger.error(f"Failed to get the cached user ids from gateway")
         logger.exception(e)
         return json.dumps({'status':False})
-
-
 
 
