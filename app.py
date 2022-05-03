@@ -43,10 +43,11 @@ class LoggerConfig:
     }
 
 logging.config.dictConfig(LoggerConfig.dictConfig)
+logger = logging.getLogger()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8800, debug=True)
-    app.logger.info("Starting Caching Service")
+    logger.info("Starting Caching Service")
 
 
 

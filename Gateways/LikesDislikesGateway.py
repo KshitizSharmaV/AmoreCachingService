@@ -57,7 +57,7 @@ async def async_get_profileIds_likes_dislikes_match_unmatch_from_redis(userId=No
         
 
 # Store likesdislikes data in firestore: We store this swipe at multiple places which will allows easy logic building
-async def async_store_LikesDislikes_for_user(currentUserId=None, swipedUserId=None, swipeInfo=None,async_db=None):
+async def async_store_likes_dislikes_superlikes_for_user(currentUserId=None, swipedUserId=None, swipeInfo=None,async_db=None):
     task1 = asyncio.create_task(async_store_likesdislikes_updated(currentUserId=currentUserId, async_db=async_db))
     task2 = asyncio.create_task(async_store_given_swipe_task(currentUserId=currentUserId, swipedUserId=swipedUserId, swipeInfo=swipeInfo, async_db=async_db))
     task3 = asyncio.create_task(async_store_received_swipe_task(currentUserId=currentUserId, swipedUserId=swipedUserId, swipeInfo=swipeInfo, async_db=async_db))
