@@ -8,7 +8,7 @@ import logging.config
 import os
 from logging.handlers import TimedRotatingFileHandler
 import json
-from bson import json_util
+# from bson import json_util
 import asyncio
 
 app = Flask(__name__)

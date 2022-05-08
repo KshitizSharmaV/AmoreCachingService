@@ -7,6 +7,7 @@ from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import async_store_likes_dislikes_superlikes_for_user
+from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function
 import logging
 import asyncio
 import traceback
@@ -14,6 +15,7 @@ import pandas as pd
 
 app_set = Blueprint('appSet', __name__)
 logger = logging.getLogger()
+
 
 @current_app.route('/storeprofilegradingscore', methods=['POST'])
 def store_profile_grading_score():
@@ -23,16 +25,18 @@ def store_profile_grading_score():
         normalizedAllProfileScoresDf = pd.DataFrame(normalizedAllProfileScoresDf)
         logger.info("Received new grading scores to be stored to firestore and cache")
         logger.info(normalizedAllProfileScoresDf)
-        future = run_coroutine(store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
-                                                                        redisClient=redisClient, 
-                                                                        logger=logger, 
-                                                                        async_db=async_db))
+        future = run_coroutine(
+            store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
+                                                    redisClient=redisClient,
+                                                    logger=logger,
+                                                    async_db=async_db))
         newProfilesCached = future.result()
-        return json.dumps({"status":True})
+        return json.dumps({"status": True})
     except Exception as e:
         logger.error(f"Failed to write grading scores to firestore or cache")
         logger.exception(e)
-        return json.dumps({"status":False})
+        return json.dumps({"status": False})
+
 
 # store_likes_dislikes_superlikes store likes, dislikes and superlikes in own user id and other profile being acted on
 @current_app.route('/storelikesdislikesGate', methods=['POST'])
@@ -50,13 +54,44 @@ def store_likes_dislikes_superlikes():
         currentUserId = request.get_json().get('currentUserId')
         swipeInfo = request.get_json().get('swipeInfo')
         swipedUserId = request.get_json().get('swipedUserId')
-        future = run_coroutine(async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId, 
-                                        swipedUserId=swipedUserId, 
-                                        swipeInfo=swipeInfo, 
-                                        async_db=async_db))
+        future = run_coroutine(
+            async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId, swipedUserId=swipedUserId,
+                                                           swipeInfo=swipeInfo, async_db=async_db,
+                                                           redis_client=redisClient))
         future.result()
         logger.info(f"Successfully stored LikesDislikes:{currentUserId}:{swipedUserId}:{swipeInfo}")
         return jsonify({'status': 200})
     except Exception as e:
         logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
+        logger.exception(e)
+
+
+@current_app.route('/unmatchgate', methods=['POST'])
+def unmatch():
+    try:
+        current_user_id = request.get_json().get('current_user_id')
+        other_user_id = request.get_json().get('other_user_id')
+        future = run_coroutine(unmatch_task_function(current_user_id=current_user_id, other_user_id=other_user_id,
+                                                     redis_client=redisClient))
+        future.result()
+        logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
+        return jsonify({'status': 200})
+    except Exception as e:
+        logger.exception(f"Unable to unmatch {current_user_id} and {other_user_id}")
+        logger.exception(e)
+
+
+@current_app.route('/rewindsingleswipegate', methods=['POST'])
+def rewind_single_swipe():
+    try:
+        current_user_id = request.get_json().get('currentUserID')
+        swipe_info = request.get_json().get('swipeInfo')
+        swiped_user_id = request.get_json().get('swipedUserID')
+        future = run_coroutine(rewind_task_function(current_user_id=current_user_id, swiped_user_id=swiped_user_id,
+                                                    redis_client=redisClient, logger=logger))
+        future.result()
+        logger.info(f"Successfully rewinded {swipe_info} by {current_user_id}")
+        return jsonify({'status': 200})
+    except Exception as e:
+        logger.exception(f"Unable to rewind {swipe_info} by {current_user_id}")
         logger.exception(e)

@@ -1,8 +1,9 @@
 import asyncio
 import itertools
 import threading
+from functools import wraps
 
-__all__ = ["EventLoopThread", "get_event_loop", "stop_event_loop", "run_coroutine"]
+__all__ = ["EventLoopThread", "get_event_loop", "stop_event_loop", "run_coroutine", "make_sync_to_coroutine"]
 
 
 class EventLoopThread(threading.Thread):
@@ -87,3 +88,11 @@ def run_coroutine(coro):
 
     """
     return asyncio.run_coroutine_threadsafe(coro, get_event_loop())
+
+
+def make_sync_to_coroutine(sync_func):
+    """Wrap a synchronous callable to allow ``await``'ing it"""
+    @wraps(sync_func)
+    async def async_func(*args, **kwargs):
+        return sync_func(*args, **kwargs)
+    return async_func

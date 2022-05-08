@@ -22,8 +22,8 @@ async def async_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=No
         profileIds = []
         async for doc in docs.stream():
             profileId = doc.id
-            profileIds.append(profileId)     
-            dictDoc = doc.to_dict()   
+            profileIds.append(profileId)
+            dictDoc = doc.to_dict()
             jsonObject_dumps = json.dumps(dictDoc, indent=4, sort_keys=True, default=str)
             # LikesDislikes:QvV4OoZmZ3QWHhMNaZrr7lkqmLF3:Received:sCZ7nWrH1uR4QfAGj6Ndz4Cp3Vv2:Likes
             # LikesDislikes:UserId:subCollectionName:ProfileId:Likes
@@ -32,7 +32,7 @@ async def async_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=No
             # LikesDislikes:UserId:subCollectionName:ProfileId:Match
             # LikesDislikes:UserId:subCollectionName:ProfileId:UnMatch
             # collectionNameChild is Match, Unmatch for swipeStatusBetweenUsers 
-            swipeStatusBetweenUsers = dictDoc["swipe"] if "swipe" in dictDoc else collectionNameChild 
+            swipeStatusBetweenUsers = dictDoc["swipe"] if "swipe" in dictDoc else collectionNameChild
             redisClient.set(f"LikesDislikes:{userId}:{collectionNameChild}:{profileId}:{swipeStatusBetweenUsers}", jsonObject_dumps)
             logger.info(f"LikesDislikes:{userId}:{collectionNameChild}:{profileId}:{swipeStatusBetweenUsers}: data was stored to cache")
         return profileIds
@@ -54,13 +54,18 @@ async def async_get_profileIds_likes_dislikes_match_unmatch_from_redis(userId=No
         logger.error(f"Unable to fetch likesdislikes data from cache:{userId}:{collectioNameChild}:{profileId}:{swipeStatusBetweenUsers}")
         logger.exception(e)
         return
-        
+
 
 # Store likesdislikes data in firestore: We store this swipe at multiple places which will allows easy logic building
-async def async_store_likes_dislikes_superlikes_for_user(currentUserId=None, swipedUserId=None, swipeInfo=None,async_db=None):
+async def async_store_likes_dislikes_superlikes_for_user(currentUserId=None, swipedUserId=None, swipeInfo=None,
+                                                         async_db=None, redis_client=None):
     task1 = asyncio.create_task(async_store_likesdislikes_updated(currentUserId=currentUserId, async_db=async_db))
-    task2 = asyncio.create_task(async_store_given_swipe_task(currentUserId=currentUserId, swipedUserId=swipedUserId, swipeInfo=swipeInfo, async_db=async_db))
-    task3 = asyncio.create_task(async_store_received_swipe_task(currentUserId=currentUserId, swipedUserId=swipedUserId, swipeInfo=swipeInfo, async_db=async_db))
+    task2 = asyncio.create_task(
+        async_store_given_swipe_task(currentUserId=currentUserId, swipedUserId=swipedUserId, swipeInfo=swipeInfo,
+                                     async_db=async_db, redis_client=redis_client))
+    task3 = asyncio.create_task(
+        async_store_received_swipe_task(currentUserId=currentUserId, swipedUserId=swipedUserId, swipeInfo=swipeInfo,
+                                        async_db=async_db, redis_client=redis_client))
     return asyncio.gather(*[task1, task2, task3])
 
 # Set the update flag for MatchingEngine
@@ -69,15 +74,19 @@ async def async_store_likesdislikes_updated(currentUserId=None, async_db=None):
 
 # Store data in likesdislikes collection of the user who have the swipe
 # done for ease of read & build easy logics around different business use cases
-async def async_store_given_swipe_task(currentUserId=None, swipedUserId=None, swipeInfo=None,async_db=None):
+async def async_store_given_swipe_task(currentUserId=None, swipedUserId=None, swipeInfo=None, async_db=None,
+                                       redis_client=None):
     storeData = {"swipe": swipeInfo, "timestamp": time.time(), 'matchVerified': False}
+    redis_client.set(f"LikesDislikes:{currentUserId}:Given:{swipedUserId}:{swipeInfo}", json.dumps(storeData))
     await async_db.collection('LikesDislikes').document(currentUserId).collection("Given").document(swipedUserId).set(storeData)
-    
+
 # Store data in likesdislikes collection of the profile who received the swipe
 # done for ease of read & build easy logics around different business use cases
-async def async_store_received_swipe_task(currentUserId=None, swipedUserId=None, swipeInfo=None,async_db=None):
-    data = {"swipe": swipedUserId, "timestamp": time.time()}
-    await async_db.collection('LikesDislikes').document(swipedUserId).collection("Received").document(currentUserId).set()
+async def async_store_received_swipe_task(currentUserId=None, swipedUserId=None, swipeInfo=None, async_db=None,
+                                          redis_client=None):
+    data = {"swipe": swipeInfo, "timestamp": time.time()}
+    redis_client.set(f"LikesDislikes:{swipedUserId}:Received:{currentUserId}:{swipeInfo}", json.dumps(data))
+    await async_db.collection('LikesDislikes').document(swipedUserId).collection("Received").document(currentUserId).set(data)
 
 # Unmatch from a user
 async def async_store_unmatch_task_likes_dislikes(userId1=None, userId2=None, async_db=None):
