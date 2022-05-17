@@ -39,3 +39,4 @@ gunicorn
 pyyaml
 redis
 pandas
+-e git+https://github.com/piyush888/GeoProxHash.git#egg=ProximityHash

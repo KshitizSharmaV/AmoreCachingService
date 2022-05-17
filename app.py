@@ -10,6 +10,7 @@ from logging.handlers import TimedRotatingFileHandler
 import json
 # from bson import json_util
 import asyncio
+from ProjectConf.ReddisConf import redisClient
 
 app = Flask(__name__)
 
@@ -60,7 +61,14 @@ import json
 def test():
     try:
         app.logger.info("Test For Amore Caching Service")
-        return json.dumps({"status":True, "service":"Amore Caching Service"})
+        redisClient.incr('hits')
+        getter = redisClient.get('hits')
+        if type(getter) is str:
+            counter = getter
+        else:
+            counter = str(getter, 'utf-8')
+        return "This webpage has been viewed "+counter+" time(s)"
+        # return json.dumps({"status":True, "service":"Amore Caching Service"})
     except Exception as e:
         app.logger.exception("Failed to get Amore Caching Service Started")
         app.logger.exception(e)

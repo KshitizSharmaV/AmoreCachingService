@@ -2,3 +2,5 @@
 /Logs/
 /serviceAccountKey.json
 /CachingService/Logs/
+*.pyc
+/.idea
