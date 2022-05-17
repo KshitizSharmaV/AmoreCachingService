@@ -17,37 +17,59 @@ with app.app_context():
     from appGet import app_get
     from appSet import app_set
 
-# # Log Settings
-LOG_FILENAME = datetime.now().strftime("%H_%M_%d_%m_%Y")+".log"
-if not os.path.exists('Logs/AppLogs/'):
-    os.makedirs('Logs/AppLogs/')
-log_level = "DEBUG"
-class LoggerConfig:
-    dictConfig = {
-        'version': 1,
-        'formatters': {'default': {
-            'format': '[%(asctime)s] {%(pathname)s:%(funcName)s:%(lineno)d} %(levelname)s - %(message)s',
-        }},
-        'handlers': {'default': {
-                    'level': 'DEBUG',
-                    'formatter': 'default',
-                    'class': 'logging.handlers.RotatingFileHandler',
-                    'filename': f'Logs/AppLogs/{LOG_FILENAME}',
-                    'maxBytes': 5000000,
-                    'backupCount': 10
-                }},
-        'root': {
-            'level': log_level,
-            'handlers': ['default']
+LOGGING_CONFIG = { 
+    'version': 1,
+    'disable_existing_loggers': True,
+    'formatters': { 
+        'standard': { 
+            'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
         },
-    }
+    },
+    'handlers': { 
+        'default': { 
+            'level': 'INFO',
+            'formatter': 'standard',
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',  # Default is stderr
+        },
+    },
+    'loggers': { 
+        '': {  # root logger
+            'handlers': ['default'],
+            'level': 'WARNING',
+            'propagate': False
+        },
+        'my.packg': { 
+            'handlers': ['default'],
+            'level': 'INFO',
+            'propagate': False
+        },
+        '__main__': {  # if __name__ == '__main__'
+            'handlers': ['default'],
+            'level': 'DEBUG',
+            'propagate': False
+        },
+    } 
+}
 
-logging.config.dictConfig(LoggerConfig.dictConfig)
-logger = logging.getLogger()
+logging.config.dictConfig(LOGGING_CONFIG)
+app.logger.info('Config')
+
+import json
+@app.route("/test", methods=["Get"])
+def test():
+    try:
+        app.logger.info("Test For Amore Caching Service")
+        return json.dumps({"status":True, "service":"Amore Caching Service"})
+    except Exception as e:
+        app.logger.exception("Failed to get Amore Caching Service Started")
+        app.logger.exception(e)
+    return flask.abort(401, 'An error occured in API /test')
+
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8800, debug=True)
-    logger.info("Starting Caching Service")
+    app.run(host="0.0.0.0", debug=True)
+    app.logger.info("Starting Caching Service")
 
 
 

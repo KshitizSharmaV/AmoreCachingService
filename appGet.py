@@ -25,17 +25,17 @@ def get_profiles_by_ids():
         # Iterate over the cached profiles cursor
         responseData = [json.loads(profile) for profile in cursor if profile]
         # Check if profile is missing from the response data, means profile not in cache
-        logger.info(f"{len(responseData)} Profiles were fetched from cache")
+        current_app.logger.info(f"{len(responseData)} Profiles were fetched from cache")
         if len(profileIdCachedKeys) != len(responseData) :
             # Oh oh - Looks like profile is missing from cache. 
             profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList,redisClient=redisClient)
-            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,redisClient=redisClient, logger=logger, async_db=async_db))
+            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,redisClient=redisClient, logger=current_app.logger, async_db=async_db))
             newProfilesCached = future.result()
             responseData.extend(newProfilesCached)
         return json.dumps(responseData, indent=4, sort_keys=True, default=str)
     except Exception as e:
-        logger.error(f"Failed to fetch profiles from gateway")
-        logger.exception(e)
+        current_app.logger.error(f"Failed to fetch profiles from gateway")
+        current_app.logger.exception(e)
         return False
 
 # Get the profiles ids which are store in cache. 
@@ -48,16 +48,19 @@ def get_cached_profile_ids_route():
         cachedProfileIds = get_cached_profile_ids(redisClient=redisClient, 
                                                   cacheFilterName=cacheFilterName)
         if len(cachedProfileIds) == 0:
-            future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=logger,async_db=async_db, callFrom="get_cached_profile_ids_route api"))
+            future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, 
+                                                            logger=current_app.logger,
+                                                            async_db=async_db, 
+                                                            callFrom="get_cached_profile_ids_route api"))
             newProfilesCached = future.result()
             cachedProfileIds = get_cached_profile_ids(redisClient=redisClient, 
                                                   cacheFilterName=cacheFilterName)
         responseData = [id.replace("Profiles:","") for id in cachedProfileIds]
-        logger.info(f"{len(responseData)} Profile Ids were fetched from cache")
+        current_app.logger.info(f"{len(responseData)} Profile Ids were fetched from cache")
         return json.dumps(responseData)
     except Exception as e:
-        logger.error(f"Failed to get the cached user ids from gateway")
-        logger.exception(e)
+        current_app.logger.error(f"Failed to get the cached user ids from gateway")
+        current_app.logger.exception(e)
         return json.dumps({'status':False})
 
 
@@ -68,16 +71,16 @@ def get_all_cached_profiles_route():
         cache_filter_name = request.get_json().get('cacheFilterName')
         cached_profile_ids = get_cached_profiles(redisClient=redisClient, cacheFilterName=cache_filter_name)
         if len(cached_profile_ids) == 0:
-            future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=logger, async_db=async_db,
+            future = run_coroutine(all_fresh_profiles_load(redisClient=redisClient, logger=current_app.logger, async_db=async_db,
                                                            callFrom="get_cached_profiles_route api"))
             newProfilesCached = future.result()
             cached_profile_ids = get_cached_profiles(redisClient=redisClient, cacheFilterName=cache_filter_name)
         # responseData = [id.replace("Profiles:","") for id in cached_profile_ids]
-        logger.info(f"{len(cached_profile_ids)} Profile Ids were fetched from cache")
+        current_app.logger.info(f"{len(cached_profile_ids)} Profile Ids were fetched from cache")
         return json.dumps(cached_profile_ids)
     except Exception as e:
-        logger.error(f"Failed to get the cached user ids from gateway")
-        logger.exception(e)
+        current_app.logger.error(f"Failed to get the cached user ids from gateway")
+        current_app.logger.exception(e)
         return json.dumps({'status':False})
 
 
@@ -91,10 +94,10 @@ def get_profiles_already_seen_by_user_route():
         ids_already_seen_by_user = future.result()
         ids_already_seen_by_user = chain(*ids_already_seen_by_user)
         response_data = [profile_id.split(':')[0] for profile_id in ids_already_seen_by_user]
-        logger.info(f"{len(response_data)} Already seen profiles Ids were fetched from cache")
+        current_app.logger.info(f"{len(response_data)} Already seen profiles Ids were fetched from cache")
         return json.dumps(response_data)
     except Exception as e:
-        logger.error(f"Failed to get the already seen cached profiles ids from gateway")
-        logger.exception(e)
+        current_app.logger.error(f"Failed to get the already seen cached profiles ids from gateway")
+        current_app.logger.exception(e)
         return json.dumps({'status': False})
 

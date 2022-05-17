@@ -28,13 +28,14 @@ def store_profile_grading_score():
         future = run_coroutine(
             store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
                                                     redisClient=redisClient,
-                                                    logger=logger,
+                                                    logger=current_app.logger,
                                                     async_db=async_db))
         newProfilesCached = future.result()
+        current_app.logger.info(f"Successfully wrote grading scores to firestore/cache")
         return json.dumps({"status": True})
     except Exception as e:
-        logger.error(f"Failed to write grading scores to firestore or cache")
-        logger.exception(e)
+        current_app.logger.error(f"Failed to write grading scores to firestore or cache")
+        current_app.logger.exception(e)
         return json.dumps({"status": False})
 
 
@@ -59,11 +60,11 @@ def store_likes_dislikes_superlikes():
                                                            swipeInfo=swipeInfo, async_db=async_db,
                                                            redis_client=redisClient))
         future.result()
-        logger.info(f"Successfully stored LikesDislikes:{currentUserId}:{swipedUserId}:{swipeInfo}")
+        current_app.logger.info(f"Successfully stored LikesDislikes:{currentUserId}:{swipedUserId}:{swipeInfo}")
         return jsonify({'status': 200})
     except Exception as e:
-        logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
-        logger.exception(e)
+        current_app.logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
+        current_app.logger.exception(e)
 
 
 @current_app.route('/unmatchgate', methods=['POST'])
@@ -74,11 +75,11 @@ def unmatch():
         future = run_coroutine(unmatch_task_function(current_user_id=current_user_id, other_user_id=other_user_id,
                                                      redis_client=redisClient))
         future.result()
-        logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
+        current_app.logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
         return jsonify({'status': 200})
     except Exception as e:
-        logger.exception(f"Unable to unmatch {current_user_id} and {other_user_id}")
-        logger.exception(e)
+        current_app.logger.exception(f"Unable to unmatch {current_user_id} and {other_user_id}")
+        current_app.logger.exception(e)
 
 
 @current_app.route('/rewindsingleswipegate', methods=['POST'])
@@ -88,10 +89,10 @@ def rewind_single_swipe():
         swipe_info = request.get_json().get('swipeInfo')
         swiped_user_id = request.get_json().get('swipedUserID')
         future = run_coroutine(rewind_task_function(current_user_id=current_user_id, swiped_user_id=swiped_user_id,
-                                                    redis_client=redisClient, logger=logger))
+                                                    redis_client=redisClient, logger=current_app.logger))
         future.result()
-        logger.info(f"Successfully rewinded {swipe_info} by {current_user_id}")
+        current_app.logger.info(f"Successfully rewinded {swipe_info} by {current_user_id}")
         return jsonify({'status': 200})
     except Exception as e:
-        logger.exception(f"Unable to rewind {swipe_info} by {current_user_id}")
-        logger.exception(e)
+        current_app.logger.exception(f"Unable to rewind {swipe_info} by {current_user_id}")
+        current_app.logger.exception(e)
