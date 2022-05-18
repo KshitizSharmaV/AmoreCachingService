@@ -4,3 +4,4 @@
 /CachingService/Logs/
 *.pyc
 /.idea
+*.DS_Store

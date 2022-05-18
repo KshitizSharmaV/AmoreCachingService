@@ -21,6 +21,12 @@ spec:
           imagePullPolicy: Never
           ports:
             - containerPort: 5050
+          env:
+            - name: FIREBASE_CRED
+              valueFrom:
+                secretKeyRef:
+                  name: firebase-secret  # name of the Secret
+                  key: serviceAccountKey.json
 
 
 ---
