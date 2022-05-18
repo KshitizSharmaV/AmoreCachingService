@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/storage/redis/data"
+    type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: task-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 300Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-deployment
+  labels:
+    name: redis-primary
+spec:
+  replicas: 1 
+  selector:
+    matchLabels:
+      app: redis-primary
+  template:
+    metadata:
+      labels:
+        app: redis-primary
+    spec:
+      subdomain: primary
+      containers:
+      - name: redis
+        image: redislabs/redismod
+        command:
+          - "redis-server"
+        args:
+          - "--protected-mode"
+          - "no"
+        ports:
+        - containerPort: 6379
+        # volumeMounts:
+        #   - mountPath: /data
+        #     name: redis-data
+        volumeMounts:
+          - mountPath: "/data"
+            name: task-pv-storage
+      volumes:
+        # - name: redis-data
+        #   emptyDir: {}
+        - name: task-pv-storage
+          persistentVolumeClaim:
+            claimName: task-pv-claim
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-svc
+spec:
+  ports:
+  - protocol: TCP
+    port: 6379
+    targetPort: 6379
+    name: redis-svc
+  selector:
+    app: redis-primary
