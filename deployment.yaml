@@ -25,7 +25,7 @@ spec:
             - name: FIREBASE_CRED
               valueFrom:
                 secretKeyRef:
-                  name: firebase-secret  # name of the Secret
+                  name: firebase-secret
                   key: serviceAccountKey.json
 
 
