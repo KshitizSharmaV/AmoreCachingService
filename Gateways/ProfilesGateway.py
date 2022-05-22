@@ -2,8 +2,9 @@ import asyncio
 import traceback
 import json
 import time
-from ProjectConf.AsyncioPlugin import make_sync_to_coroutine
-
+import flask
+from ProjectConf.AsyncioPlugin import make_sync_to_coroutine, run_coroutine
+from Gateways.RecommendationGateway import GeoService_store_profiles
 from redis.client import Redis
 
 
@@ -11,8 +12,13 @@ async def write_one_profile_to_cache(profile=None, redisClient=None, logger=None
     try:
         jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
         # Redis - Create a new document if doesn't already exist in the database
-        redisClient.set(f"Profiles:{profile['id']}", jsonObject_dumps)
-        logger.info(f"{profile['id']}: Successfully loaded profile in cache")
+        key = f"Profiles:{profile['id']}"
+        redisClient.set(key,jsonObject_dumps)
+        logger.info(f"{key}: storage was success")
+        # Redis - Store the profile in redis for recommendation engine
+        _ = await GeoService_store_profiles(profile=profile, 
+                                                    redisClient=redisClient,
+                                                    logger=logger)
         await async_db.collection("Profiles").document(profile["id"]).update({u'wasProfileUpdated': False})
         return profile
     except Exception as e:
@@ -75,7 +81,9 @@ def get_cached_profiles(redisClient: Redis = None, cacheFilterName=None):
 async def all_fresh_profiles_load(redisClient=None, logger=None, async_db=None, callFrom=None):
     profileIdsInCache = get_cached_profile_ids(redisClient=redisClient,
                                                cacheFilterName="Profiles")
+    # Check if 0 profiles exist in cache.
     if len(profileIdsInCache) == 0:
+        # if first load, only load the active profiles
         queryOn = 'isProfileActive'
         logger.info(f"Fresh profile load into firestore was initiated. Initiated by: {callFrom}")
     else:
@@ -107,3 +115,26 @@ async def get_profiles_already_seen_by_user(current_user_id: str = None, redis_c
     ids_unmatch_task = asyncio.create_task(
         get_cached_profile_coro(redisClient=redis_client, cacheFilterName=unmatch_filter))
     return await asyncio.gather(*[ids_unmatch_task, ids_match_task, ids_given_task])
+
+
+async def get_profile_by_ids(redisClient=None, profileIdList=None, logger=None, async_db=None):
+    try:
+        # Find those Profiles in the local cache
+        profileIdCachedKeys = [f"Profiles:{id}" for id in profileIdList]
+        cursor = redisClient.mget(profileIdCachedKeys)
+        # Iterate over the cached profiles cursor
+        allProfilesData = [json.loads(profile) for profile in cursor if profile]
+        # Check if profile is missing from the response data, means profile not in cache
+        logger.info(f"{len(allProfilesData)} Profiles were fetched from cache")
+        logger.info(f"{allProfilesData}")
+        if len(profileIdCachedKeys) != len(allProfilesData) :
+            # Oh oh - Looks like profile is missing from cache. 
+            profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList,redisClient=redisClient)
+            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,redisClient=redisClient, logger=logger.logger, async_db=async_db))
+            newProfilesCached = future.result()
+            allProfilesData.extend(newProfilesCached)
+        return allProfilesData
+    except Exception as e:
+        logger.error(f'An error occured in fetching profiles for ids: {",".join(profileIdList)}')
+        logger.exception(e)
+        flask.abort(401, f'An error occured in fetching profiles for ids: {",".join(profileIdList)}')

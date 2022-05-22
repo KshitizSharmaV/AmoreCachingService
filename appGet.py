@@ -6,7 +6,10 @@ from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.ProfilesGateway import load_profiles_to_cache_from_firebase, get_profiles_not_in_cache, \
-    get_cached_profile_ids, all_fresh_profiles_load, get_profiles_already_seen_by_user, get_cached_profiles
+    get_cached_profile_ids, all_fresh_profiles_load, get_profiles_already_seen_by_user, get_cached_profiles, \
+    get_profile_by_ids
+from Gateways.RecommendationGateway import GeoService_get_recommended_profiles_for_user
+
 import logging
 import traceback
 
@@ -19,20 +22,10 @@ def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
         profileIdList = request.get_json().get('profileIdList')
-        # Find those Profiles in the local cache
-        profileIdCachedKeys = [f"Profiles:{id}" for id in profileIdList]
-        cursor = redisClient.mget(profileIdCachedKeys)
-        # Iterate over the cached profiles cursor
-        responseData = [json.loads(profile) for profile in cursor if profile]
-        # Check if profile is missing from the response data, means profile not in cache
-        current_app.logger.info(f"{len(responseData)} Profiles were fetched from cache")
-        if len(profileIdCachedKeys) != len(responseData) :
-            # Oh oh - Looks like profile is missing from cache. 
-            profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList,redisClient=redisClient)
-            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,redisClient=redisClient, logger=current_app.logger, async_db=async_db))
-            newProfilesCached = future.result()
-            responseData.extend(newProfilesCached)
-        return json.dumps(responseData, indent=4, sort_keys=True, default=str)
+        allProfilesData = get_profile_by_ids(redisClient=redisClient, 
+                                            profileIdList=profileIdList, 
+                                            logger=current_app.logger)
+        return json.dumps(allProfilesData, indent=4, sort_keys=True, default=str)
     except Exception as e:
         current_app.logger.error(f"Failed to fetch profiles from gateway")
         current_app.logger.exception(e)
@@ -100,4 +93,16 @@ def get_profiles_already_seen_by_user_route():
         current_app.logger.error(f"Failed to get the already seen cached profiles ids from gateway")
         current_app.logger.exception(e)
         return json.dumps({'status': False})
+
+@current_app.route('/getprofilerecommendations', methods=['POST'])
+def get_recommendations_for_user():
+    try:
+        current_user_id = request.get_json().get('currentUserId')
+        GeoService_get_recommended_profiles_for_user(profileId=None, 
+                                redis_client=None)
+    except Exception as e:
+        current_app.logger.error(f"{current_user_id}: Failed to get recommendation")
+        current_app.logger.exception(e)
+        return json.dumps({'status': False})
+
 
