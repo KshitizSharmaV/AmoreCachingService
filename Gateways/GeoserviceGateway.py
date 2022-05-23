@@ -30,6 +30,29 @@ import json
 ######## a. Top Scoring Profiles in the cluster & cloose to the user
 ######## b. Boosted Profiles
 
+
+
+async def GeoService_store_profiles(profile=None, redisClient=None,logger=None):
+    try:
+        userDataFields = list(profile.keys())
+        religion = profile['religion'] if 'religion' in userDataFields else "other"
+        # Check if user provided height, if not assign default heights depending on gender
+        # Female average height: 5.3
+        # Male/Other average height: 5.6
+        height = profile["height"] if 'height' in userDataFields else (5.3 if profile["genderIdentity"] == "female" else 5.6)
+        # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
+        key = f"GeoService:{profile['geohash2']}:{profile['geohash3']}:{profile['geohash4']}:{profile['geohash5']}:{profile['geohash']}:{profile['genderIdentity']}:{religion}:{profile['age']}:{profile['id']}"
+        jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
+        redisClient.set(key, jsonObject_dumps)
+        logger.info(f"{key} storage was success")
+        return True
+    except Exception as e:
+        logger.error(f"{profile['id']}: Recommendation caching failed")
+        logger.error(f"{profile}")
+        logger.exception(e)
+        return False
+
+
 def GeoService_get_fitered_profiles_on_params(**kwargs):
     # Usage Examples
     # MUST pass a redisClient & a logger
@@ -42,7 +65,7 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
         redisClient = kwargs['redisClient']
     else:
         raise ValueError("Expecting logging and redisClient to be passed to function")
-        return
+        return False
     
     try:
         geohash2 = kwargs['geohash2'] if 'geohash2' in kwargs else "*"
@@ -57,14 +80,13 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
         id = kwargs['id'] if 'id' in kwargs else "*"
 
         searchQuery = f'GeoService:{geohash2}:{geohash3}:{geohash4}:{geohash5}:{geohash}:{genderIdentity}:{religion}:{age}:{height}:{id}'
-        logging.info(f"{searchQuery} execution for profiles in cache")
+        logging.info(f"{searchQuery} executing query to get data from cache")
         profileMatches = [key for key in redisClient.scan_iter(f"{searchQuery}")]
         return profileMatches
     except Exception as e:
-        logging.exception("{searchQuery}: Failed to get recommendation from Caching Geo Service")
+        logging.exception(f"{searchQuery}: Failed to get recommendation from Caching Geo Service")
         logging.exception(e)
         return False
-
 
 
 def GeoService_get_recommended_profiles_for_user(userId=None, redisClient=None, logging=None):
@@ -83,30 +105,9 @@ def GeoService_get_recommended_profiles_for_user(userId=None, redisClient=None, 
                                                                             genderIdentity=genderPrefernce,
                                                                             redisClient=redisClient, logging=logging)
         logging.info(f"{userId}: {len(recommendedProfilesKeys)} recommendations fetched for user")
-        return userData, recommendedProfilesKeys
+        return (userData, recommendedProfilesKeys)
     except Exception as e:
-        logging.exception("{userId}: failed to get recommendation for user")
+        logging.exception(f"{userId}: failed to get recommendation for user")
         logging.exception(e)
-        return
-
-async def GeoService_store_profiles( profile=None, redisClient=None,logger=None):
-    try:
-        userDataFields = list(profile.keys())
-        religion = profile['religion'] if 'religion' in userDataFields else "other"
-        # Check if user provided height, if not assign default heights depending on gender
-        # Female average height: 5.3
-        # Male/Other average height: 5.6
-        height = profile["height"] if 'height' in userDataFields else (5.3 if profile["genderIdentity"] == "female" else 5.6)
-        # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
-        key = f"GeoService:{profile['geohash2']}:{profile['geohash3']}:{profile['geohash4']}:{profile['geohash5']}:{profile['geohash']}:{profile['genderIdentity']}:{religion}:{profile['age']}:{height}:{profile['id']}"
-        jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
-        redisClient.set(key, jsonObject_dumps)
-        logger.info(f"{key} storage was success")
-        return True
-    except Exception as e:
-        logger.error(f"{profile['id']}: Recommendation caching failed")
-        logger.error(f"{profile}")
-        logger.exception(e)
         return False
-
 

@@ -4,7 +4,7 @@ import json
 import time
 import flask
 from ProjectConf.AsyncioPlugin import make_sync_to_coroutine, run_coroutine
-from Gateways.RecommendationGateway import GeoService_store_profiles
+from Gateways.GeoserviceGateway import GeoService_store_profiles
 from redis.client import Redis
 
 

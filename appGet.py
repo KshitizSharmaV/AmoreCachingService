@@ -8,7 +8,7 @@ from ProjectConf.FirestoreConf import async_db, db
 from Gateways.ProfilesGateway import load_profiles_to_cache_from_firebase, get_profiles_not_in_cache, \
     get_cached_profile_ids, all_fresh_profiles_load, get_profiles_already_seen_by_user, get_cached_profiles, \
     get_profile_by_ids
-from Gateways.RecommendationGateway import GeoService_get_recommended_profiles_for_user
+from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
 
 import logging
 import traceback

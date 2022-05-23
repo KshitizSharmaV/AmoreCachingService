@@ -8,6 +8,7 @@ from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import async_store_likes_dislikes_superlikes_for_user
 from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function
+from Gateways.GeoserviceGateway import GeoService_store_profiles
 import logging
 import asyncio
 import traceback
@@ -96,3 +97,24 @@ def rewind_single_swipe():
     except Exception as e:
         current_app.logger.exception(f"Unable to rewind {swipe_info} by {current_user_id}")
         current_app.logger.exception(e)
+
+
+@current_app.route('/storeProfileInBackendGate', methods=['POST'])
+def store_profile():
+    try:
+        profile = request.get_json().get('profile')
+        future = run_coroutine(GeoService_store_profiles(profile=profile,
+                                                        redisClient=redisClient, 
+                                                        logger=current_app.logger))
+        result = future.result()
+        print(result)
+        current_app.logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
+        response = jsonify({'message':f"{profile['id']}: Successfully stored profile in Cache/DB"})
+        response.status_code = 200
+        return response
+    except Exception as e:
+        current_app.logger.exception(f"{profile['id']}: Unable to stored profile in Cache/DB")
+        current_app.logger.exception(e)
+        response = jsonify({'message': 'An error occured in API /storeProfileInBackendGate'})
+        response.status_code = 400
+        return response
