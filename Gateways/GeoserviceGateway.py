@@ -31,16 +31,11 @@ import json
 ######## b. Boosted Profiles
 
 
-
 async def GeoService_store_profiles(profile=None, redisClient=None,logger=None):
     try:
         userDataFields = list(profile.keys())
-        religion = profile['religion'] if 'religion' in userDataFields else "other"
-        # Check if user provided height, if not assign default heights depending on gender
-        # Female average height: 5.3
-        # Male/Other average height: 5.6
-        height = profile["height"] if 'height' in userDataFields else (5.3 if profile["genderIdentity"] == "female" else 5.6)
-        # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
+        religion = profile['religion'] if 'religion' in userDataFields else "Other"
+        # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:Other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
         key = f"GeoService:{profile['geohash2']}:{profile['geohash3']}:{profile['geohash4']}:{profile['geohash5']}:{profile['geohash']}:{profile['genderIdentity']}:{religion}:{profile['age']}:{profile['id']}"
         jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
         redisClient.set(key, jsonObject_dumps)
@@ -56,15 +51,15 @@ async def GeoService_store_profiles(profile=None, redisClient=None,logger=None):
 def GeoService_get_fitered_profiles_on_params(**kwargs):
     # Usage Examples
     # MUST pass a redisClient & a logger
-    # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2"
+    # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:Other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2"
     # e.g. GeoService:tx:*:*:*:*:*:*:*:*:*
     # e.g. GeoService:tx:*:*:*:*:*:*:*:*:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
     
-    if ('logging' in kwargs) & ('redisClient' in kwargs):
-        logging = kwargs['logging']
+    if ('logger' in kwargs) & ('redisClient' in kwargs):
+        logger = kwargs['logger']
         redisClient = kwargs['redisClient']
     else:
-        raise ValueError("Expecting logging and redisClient to be passed to function")
+        raise ValueError("Expecting logger and redisClient to be passed to function")
         return False
     
     try:
@@ -78,21 +73,27 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
         age = kwargs['age'] if 'age' in kwargs else "*"
         height = kwargs['height'] if 'height' in kwargs else "*"
         id = kwargs['id'] if 'id' in kwargs else "*"
-
-        searchQuery = f'GeoService:{geohash2}:{geohash3}:{geohash4}:{geohash5}:{geohash}:{genderIdentity}:{religion}:{age}:{height}:{id}'
-        logging.info(f"{searchQuery} executing query to get data from cache")
+        searchQuery = f'GeoService:{geohash2}:{geohash3}:{geohash4}:{geohash5}:{geohash}:{genderIdentity}:{religion}:{age}:{id}'
         profileMatches = [key for key in redisClient.scan_iter(f"{searchQuery}")]
+        log_profiles(profileMatches=profileMatches, logger=logger, searchQuery=searchQuery)
         return profileMatches
     except Exception as e:
-        logging.exception(f"{searchQuery}: Failed to get recommendation from Caching Geo Service")
-        logging.exception(e)
+        logger.exception(f"{searchQuery}: Failed to get recommendation from Caching Geo Service")
+        logger.exception(e)
         return False
 
+def log_profiles(profileMatches=None, logger=None, searchQuery=None):
+    logger.info(f"{searchQuery} executing query to get data from cache")
+    print("*******************************")
+    for profileId in profileMatches:
+        print(profileId)
+    print(len(profileMatches))
+    print("**************")
 
-def GeoService_get_recommended_profiles_for_user(userId=None, redisClient=None, logging=None):
+async def GeoService_get_recommended_profiles_for_user(userId=None, redisClient=None, logger=None):
     try:
-        # e.g. GeoService:dh:dhv:dhv6:dhv65:dhv65tqesm:female:other:27:5.3:xlPsz0jEL5oMjNxqLNKk
-        userGeoServicekey = GeoService_get_fitered_profiles_on_params(id=userId, redisClient=redisClient, logging=logging)
+        # e.g. GeoService:dh:dhv:dhv6:dhv65:dhv65tqesm:female:Other:27:5.3:xlPsz0jEL5oMjNxqLNKk
+        userGeoServicekey = GeoService_get_fitered_profiles_on_params(id=userId, redisClient=redisClient, logger=logger)
         # Get the only profile match from the query
         profileKey = userGeoServicekey.pop()
         userData = redisClient.mget(profileKey)
@@ -100,14 +101,15 @@ def GeoService_get_recommended_profiles_for_user(userId=None, redisClient=None, 
         # Convert the profile from string to dictionary
         userData = json.loads(userData)
         # Get filter the user wants
-        genderPrefernce = "female" if userData['showMePreference'] == "Women" else ("male" if userData['showMePreference'] == "Men" else "*")
+        genderPrefernce = "Male" if userData['showMePreference'] == "Women" else ("Male" if userData['showMePreference'] == "Men" else "*")
         recommendedProfilesKeys = GeoService_get_fitered_profiles_on_params(geohash3=userData["geohash3"],
                                                                             genderIdentity=genderPrefernce,
-                                                                            redisClient=redisClient, logging=logging)
-        logging.info(f"{userId}: {len(recommendedProfilesKeys)} recommendations fetched for user")
+                                                                            redisClient=redisClient, 
+                                                                            logger=logger)
+        logger.info(f"{userId}: {len(recommendedProfilesKeys)} recommendations fetched for user")
         return (userData, recommendedProfilesKeys)
     except Exception as e:
-        logging.exception(f"{userId}: failed to get recommendation for user")
-        logging.exception(e)
+        logger.exception(f"{userId}: Failed to get recommendation for user")
+        logger.exception(e)
         return False
 

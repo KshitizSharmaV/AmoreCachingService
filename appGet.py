@@ -95,15 +95,25 @@ def get_profiles_already_seen_by_user_route():
         current_app.logger.exception(e)
         return json.dumps({'status': False})
 
-@current_app.route('/getprofilerecommendations', methods=['POST'])
-def get_recommendations_for_user():
+@current_app.route('/fetchGeoRecommendationsGate', methods=['POST'])
+def fetch_geo_recommendations():
     try:
-        currentUserId = request.get_json().get('currentUserId')
-        GeoService_get_recommended_profiles_for_user(userId=currentUserId, redisClient=redisClient, logging=current_app.logger)
+        userId = request.get_json().get('userId')
+        profilesCountLeftInDeck = request.get_json().get('profilesCountLeftInDeck')
+        future = run_coroutine(GeoService_get_recommended_profiles_for_user(userId=userId,
+                                                        redisClient=redisClient, 
+                                                        logger=current_app.logger))
+        profilesList = future.result()
+        current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
+        response = jsonify({'message':f"{userId}: Successfully fetched recommendations"})
+        response.status_code = 200
+        return response
     except Exception as e:
-        current_app.logger.error(f"{currentUserId}: Failed to get recommendation")
+        current_app.logger.exception(f"{userId}: Unable to fetch recommendations")
         current_app.logger.exception(e)
-        return json.dumps({'status': False})
+        response = jsonify({'message': 'Unable to fetch recommendations /fetchGeoRecommendationsGate'})
+        response.status_code = 400
+        return response
 
 
 
@@ -122,11 +132,10 @@ def get_likes_dislikes_for_user_route():
                                 async_db=async_db, redisClient=redisClient, logger=current_app.logger))
         swipe_info_for_user = future.result()
         response_data = list(swipe_info_for_user)
-        # swipe_info_for_user = chain(*swipe_info_for_user)
-        # response_data = [profile_id.split(':')[0] for profile_id in swipe_info_for_user]
         current_app.logger.info(f"{len(response_data)} Likes Dislikes for user were fetched, stored in cache, and returned")
         return jsonify(response_data)
     except Exception as e:
         current_app.logger.error(f"Failed to get the Likes Dislikes for user from gateway")
         current_app.logger.exception(e)
         return json.dumps({'status': False})
+        
