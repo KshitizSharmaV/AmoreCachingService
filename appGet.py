@@ -94,15 +94,22 @@ def get_profiles_already_seen_by_user_route():
         current_app.logger.exception(e)
         return json.dumps({'status': False})
 
-@current_app.route('/getprofilerecommendations', methods=['POST'])
-def get_recommendations_for_user():
+@current_app.route('/fetchGeoRecommendationsGate', methods=['POST'])
+def fetch_geo_recommendations():
     try:
-        current_user_id = request.get_json().get('currentUserId')
-        GeoService_get_recommended_profiles_for_user(profileId=None, 
-                                redis_client=None)
+        userId = request.get_json().get('userId')
+        profilesCountLeftInDeck = request.get_json().get('profilesCountLeftInDeck')
+        future = run_coroutine(GeoService_get_recommended_profiles_for_user(userId=userId,
+                                                        redisClient=redisClient, 
+                                                        logger=current_app.logger))
+        profilesList = future.result()
+        current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
+        response = jsonify({'message':f"{userId}: Successfully fetched recommendations"})
+        response.status_code = 200
+        return response
     except Exception as e:
-        current_app.logger.error(f"{current_user_id}: Failed to get recommendation")
+        current_app.logger.exception(f"{userId}: Unable to fetch recommendations")
         current_app.logger.exception(e)
-        return json.dumps({'status': False})
-
-
+        response = jsonify({'message': 'Unable to fetch recommendations /fetchGeoRecommendationsGate'})
+        response.status_code = 400
+        return response

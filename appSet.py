@@ -103,11 +103,11 @@ def rewind_single_swipe():
 def store_profile():
     try:
         profile = request.get_json().get('profile')
+        # Update the cache with profile data?
         future = run_coroutine(GeoService_store_profiles(profile=profile,
                                                         redisClient=redisClient, 
                                                         logger=current_app.logger))
         result = future.result()
-        print(result)
         current_app.logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
         response = jsonify({'message':f"{profile['id']}: Successfully stored profile in Cache/DB"})
         response.status_code = 200
