@@ -9,6 +9,7 @@ from Gateways.ProfilesGateway import load_profiles_to_cache_from_firebase, get_p
     get_cached_profile_ids, all_fresh_profiles_load, get_profiles_already_seen_by_user, get_cached_profiles, \
     get_profile_by_ids
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
+from Gateways.LikesDislikesGateway import *
 
 import logging
 import traceback
@@ -97,12 +98,35 @@ def get_profiles_already_seen_by_user_route():
 @current_app.route('/getprofilerecommendations', methods=['POST'])
 def get_recommendations_for_user():
     try:
-        current_user_id = request.get_json().get('currentUserId')
-        GeoService_get_recommended_profiles_for_user(profileId=None, 
-                                redis_client=None)
+        currentUserId = request.get_json().get('currentUserId')
+        GeoService_get_recommended_profiles_for_user(userId=currentUserId, redisClient=redisClient, logging=current_app.logger)
     except Exception as e:
-        current_app.logger.error(f"{current_user_id}: Failed to get recommendation")
+        current_app.logger.error(f"{currentUserId}: Failed to get recommendation")
         current_app.logger.exception(e)
         return json.dumps({'status': False})
 
 
+
+# Profiles already seen by current_user -> list of profile ids
+@current_app.route('/getlikesdislikesforuser', methods=['GET'])
+def get_likes_dislikes_for_user_route():
+    """
+    Returns list of Profile IDs for the given type of Swipe (Like Given, Dislike Given, Like Received, etc.)
+    """
+    try:
+        currentUserId = request.get_json().get('currentUserId')
+        collectionNameChild = request.get_json().get('collectionNameChild')
+        matchFor = request.get_json().get('matchFor')
+        future = run_coroutine(async_get_swipe_infos_for_user_from_firebase(userId=currentUserId,
+                                collectionNameChild=collectionNameChild, matchFor=matchFor,
+                                async_db=async_db, redisClient=redisClient, logger=current_app.logger))
+        swipe_info_for_user = future.result()
+        response_data = list(swipe_info_for_user)
+        # swipe_info_for_user = chain(*swipe_info_for_user)
+        # response_data = [profile_id.split(':')[0] for profile_id in swipe_info_for_user]
+        current_app.logger.info(f"{len(response_data)} Likes Dislikes for user were fetched, stored in cache, and returned")
+        return jsonify(response_data)
+    except Exception as e:
+        current_app.logger.error(f"Failed to get the Likes Dislikes for user from gateway")
+        current_app.logger.exception(e)
+        return json.dumps({'status': False})

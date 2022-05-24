@@ -98,3 +98,19 @@ async def async_store_unmatch_task_likes_dislikes(userId1=None, userId2=None, as
         unmatch_ref = async_db.collection('LikesDislikes').document(userId1).collection("Unmatch").document(userId2)
         await unmatch_ref.set(match_doc)
 
+
+
+# Get Likesdislikes data from firestore
+async def async_get_swipe_infos_for_user_from_firebase(userId=None, collectionNameChild=None, matchFor=None, async_db=None, redisClient=None, logger=None):
+    try:
+        # userId: Likes Dislikes of the user requesting data
+        # collectionNameChild: Given, Match, Received, Unmatch
+        docs = async_db.collection("LikesDislikes").document(userId).collection(collectionNameChild).where(u'swipe', u'==', 
+                                            matchFor).order_by(u'timestamp', direction=firestore.Query.DESCENDING)
+        profileIds = await async_store_likes_dislikes_match_unmatch_to_redis(docs=docs, userId=userId, 
+                                                        collectionNameChild=collectionNameChild, 
+                                                        redisClient=redisClient, logger=logger)
+        return profileIds
+    except Exception as e:
+        logger.error(f"LikesDislikes:{userId}:{collectionNameChild} Failure to fetch likes dislikes data from firstore")
+        logger.exception(e)
