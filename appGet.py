@@ -5,9 +5,7 @@ from itertools import chain
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
-from Gateways.ProfilesGateway import load_profiles_to_cache_from_firebase, get_profiles_not_in_cache, \
-    get_cached_profile_ids, all_fresh_profiles_load, get_profiles_already_seen_by_user, get_cached_profiles, \
-    get_profile_by_ids
+from Gateways.ProfilesGateway import *
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
 from Gateways.LikesDislikesGateway import *
 
@@ -23,9 +21,9 @@ def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
         profileIdList = request.get_json().get('profileIdList')
-        allProfilesData = get_profile_by_ids(redisClient=redisClient, 
-                                            profileIdList=profileIdList, 
-                                            logger=current_app.logger)
+        allProfilesData = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=profileIdList, 
+                                                        logger=current_app.logger, async_db=async_db))
+        allProfilesData = allProfilesData.result()
         return json.dumps(allProfilesData, indent=4, sort_keys=True, default=str)
     except Exception as e:
         current_app.logger.error(f"Failed to fetch profiles from gateway")
@@ -104,10 +102,14 @@ def fetch_geo_recommendations():
                                                         redisClient=redisClient, 
                                                         logger=current_app.logger))
         profilesList = future.result()
-        current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
+        profilesList = profilesList[1] if len(profilesList) > 0 else profilesList
+        profiles_array = list(map(redisClient.mget, profilesList))
+        profiles_array = [json.loads(profile_string[0]) for profile_string in profiles_array]
+        current_app.logger.warning(f"{userId}: Recommendations: {profiles_array}")
+        # current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
         response = jsonify({'message':f"{userId}: Successfully fetched recommendations"})
         response.status_code = 200
-        return response
+        return jsonify(profiles_array)
     except Exception as e:
         current_app.logger.exception(f"{userId}: Unable to fetch recommendations")
         current_app.logger.exception(e)
@@ -127,13 +129,17 @@ def get_likes_dislikes_for_user_route():
         currentUserId = request.get_json().get('currentUserId')
         collectionNameChild = request.get_json().get('collectionNameChild')
         matchFor = request.get_json().get('matchFor')
+        getListOfIds = request.get_json().get('getListOfIds')
         future = run_coroutine(async_get_swipe_infos_for_user_from_firebase(userId=currentUserId,
                                 collectionNameChild=collectionNameChild, matchFor=matchFor,
                                 async_db=async_db, redisClient=redisClient, logger=current_app.logger))
         swipe_info_for_user = future.result()
-        response_data = list(swipe_info_for_user)
-        current_app.logger.info(f"{len(response_data)} Likes Dislikes for user were fetched, stored in cache, and returned")
-        return jsonify(response_data)
+        ids_list = list(swipe_info_for_user)
+        profiles_array_future = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list, 
+                                                                logger=current_app.logger, async_db=async_db))
+        profiles_array = profiles_array_future.result()
+        current_app.logger.info(f"{len(profiles_array)} Likes Dislikes for user were fetched, stored in cache, and returned")
+        return jsonify(profiles_array)
     except Exception as e:
         current_app.logger.error(f"Failed to get the Likes Dislikes for user from gateway")
         current_app.logger.exception(e)

@@ -125,12 +125,13 @@ async def get_profile_by_ids(redisClient=None, profileIdList=None, logger=None, 
         # Iterate over the cached profiles cursor
         allProfilesData = [json.loads(profile) for profile in cursor if profile]
         # Check if profile is missing from the response data, means profile not in cache
-        logger.info(f"{len(allProfilesData)} Profiles were fetched from cache")
-        logger.info(f"{allProfilesData}")
+        # logger.info(f"{len(allProfilesData)} Profiles were fetched from cache")
+        # logger.info(f"{allProfilesData}")
         if len(profileIdCachedKeys) != len(allProfilesData) :
             # Oh oh - Looks like profile is missing from cache. 
             profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList,redisClient=redisClient)
-            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,redisClient=redisClient, logger=logger.logger, async_db=async_db))
+            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache, 
+                                                        redisClient=redisClient, logger=logger, async_db=async_db))
             newProfilesCached = future.result()
             allProfilesData.extend(newProfilesCached)
         return allProfilesData
