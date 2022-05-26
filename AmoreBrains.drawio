@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2022-05-26T17:56:50.238Z" agent="5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15" etag="Obt068QiIZxx7XL3evpX" version="18.1.2" type="github">
+<mxfile host="app.diagrams.net" modified="2022-05-26T18:14:42.826Z" agent="5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15" etag="Iul74UDO06hsHMXK42bp" version="18.1.2" type="github">
   <diagram id="prtHgNgQTEPvFCAcTncT" name="Page-1">
     <mxGraphModel dx="1021" dy="689" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
@@ -29,6 +29,9 @@
             <mxPoint x="160" y="89.99999999999989" as="sourcePoint" />
             <mxPoint x="160" y="89.99999999999989" as="targetPoint" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="pGoGsKIxF10AGJMz8fm9-24" value="Initial Load: 50 cards&lt;br&gt;Trigger to pull cards?" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=#d6b656;fillColor=#fff2cc;fontSize=10;" vertex="1" parent="dNxyNK7c78bLwvsdeMH5-20">
+          <mxGeometry x="164" y="100" width="110" height="30" as="geometry" />
         </mxCell>
         <mxCell id="dNxyNK7c78bLwvsdeMH5-21" value="Flask" style="swimlane;html=1;startSize=20;horizontal=0;" parent="dNxyNK7c78bLwvsdeMH5-19" vertex="1">
           <mxGeometry x="20" y="170" width="470" height="170" as="geometry">
@@ -100,8 +103,8 @@
         <mxCell id="pGoGsKIxF10AGJMz8fm9-10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="dNxyNK7c78bLwvsdeMH5-30" target="pGoGsKIxF10AGJMz8fm9-9">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="pGoGsKIxF10AGJMz8fm9-13" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="180" y="870" width="420" height="170" as="geometry" />
+        <mxCell id="pGoGsKIxF10AGJMz8fm9-13" value="&lt;p style=&quot;margin: 0px; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; font-size: 10px;&quot;&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;GeoService:9q:9q9:9q9h:9q9hr:9q9hrh5sddbr:Male:Other:33:M6vW2wj55ihSnkpQTrlpEOULrtj1&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;margin: 0px; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; font-size: 10px;&quot;&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;&lt;/font&gt;&lt;/p&gt;&lt;p style=&quot;margin: 0px; font-stretch: normal; line-height: normal; font-family: &amp;quot;Helvetica Neue&amp;quot;; font-size: 10px;&quot;&gt;&lt;font style=&quot;font-size: 10px;&quot;&gt;LikesDislikes:M6vW2wj55ihSnkpQTrlpEOULrtj1:Given:yVLnkPH1Uq3KhEkkZgSq:Likes&lt;/font&gt;&lt;/p&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=left;" vertex="1" parent="1">
+          <mxGeometry x="110" y="800" width="491" height="240" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
