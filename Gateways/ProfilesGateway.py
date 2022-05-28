@@ -13,12 +13,12 @@ async def write_one_profile_to_cache(profile=None, redisClient=None, logger=None
         jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
         # Redis - Create a new document if doesn't already exist in the database
         key = f"Profiles:{profile['id']}"
-        redisClient.set(key,jsonObject_dumps)
+        redisClient.set(key, jsonObject_dumps)
         logger.info(f"{key}: storage was success")
         # Redis - Store the profile in redis for recommendation engine
-        _ = await GeoService_store_profiles(profile=profile, 
-                                                    redisClient=redisClient,
-                                                    logger=logger)
+        _ = await GeoService_store_profiles(profile=profile,
+                                            redisClient=redisClient,
+                                            logger=logger)
         await async_db.collection("Profiles").document(profile["id"]).update({u'wasProfileUpdated': False})
         return profile
     except Exception as e:
@@ -125,14 +125,12 @@ async def get_profile_by_ids(redisClient=None, profileIdList=None, logger=None, 
         # Iterate over the cached profiles cursor
         allProfilesData = [json.loads(profile) for profile in cursor if profile]
         # Check if profile is missing from the response data, means profile not in cache
-        # logger.info(f"{len(allProfilesData)} Profiles were fetched from cache")
-        # logger.info(f"{allProfilesData}")
-        if len(profileIdCachedKeys) != len(allProfilesData) :
+        if len(profileIdCachedKeys) != len(allProfilesData):
             # Oh oh - Looks like profile is missing from cache. 
-            profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList,redisClient=redisClient)
-            future = run_coroutine(load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache, 
-                                                        redisClient=redisClient, logger=logger, async_db=async_db))
-            newProfilesCached = future.result()
+            profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList, redisClient=redisClient)
+            newProfilesCached = await load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,
+                                                                           redisClient=redisClient, logger=logger,
+                                                                           async_db=async_db)
             allProfilesData.extend(newProfilesCached)
         return allProfilesData
     except Exception as e:
