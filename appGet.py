@@ -102,10 +102,11 @@ def fetch_geo_recommendations():
     try:
         userId = request.get_json().get('userId')
         profilesCountLeftInDeck = request.get_json().get('profilesCountLeftInDeck')
-        future = run_coroutine(GeoService_get_recommended_profiles_for_user(userId=userId,
-                                                                            redisClient=redisClient,
-                                                                            logger=current_app.logger))
-        profilesList = future.result()
+        filterData = request.get_json().get('filterData')
+        profilesList = GeoService_get_recommended_profiles_for_user(userId=userId,
+                                                                        filterData=filterData,
+                                                                        redisClient=redisClient,
+                                                                        logger=current_app.logger)
         profilesList = profilesList[1] if len(profilesList) > 0 else profilesList
         profiles_array = list(map(redisClient.mget, profilesList))
         profiles_array = [json.loads(profile_string[0]) for profile_string in profiles_array]
