@@ -27,24 +27,26 @@ import json
 # Store these buckets of documents into firestore
 
 # Extra Pipeline, Add profiles to recommendations before sending back
-### On top of these recommendation profiles add following differnet kinds of profiles: 
+### On top of these recommendation profiles add following differnet kinds of profiles e.g.
 ######## a. Top Scoring Profiles in the cluster & cloose to the user
 ######## b. Boosted Profiles
 
 
 async def GeoService_store_profiles(profile=None, redisClient=None, logger=None):
     try:
+        # Remove the profile first before adding/updating if exists
+
         userDataFields = list(profile.keys())
         religion = profile['religion'] if 'religion' in userDataFields else "Other"
-        # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:Other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
+        # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:45:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
         key = f"GeoService:{profile['geohash1']}:{profile['geohash2']}:{profile['geohash3']}:{profile['geohash4']}:{profile['geohash5']}:{profile['geohash']}:{profile['genderIdentity']}:{religion}:{profile['age']}:{profile['id']}"
         jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
         redisClient.set(key, jsonObject_dumps)
         logger.info(f"{key} storage was success")
         return True
     except Exception as e:
-        logger.error(f"{profile['id']}: Recommendation caching failed")
-        logger.error(f"{profile}")
+        logger.exception(f"{profile['id']}: Recommendation caching failed")
+        logger.exception(f"{profile}")
         logger.exception(e)
         return False
 
@@ -55,7 +57,6 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
     # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:Other:45:5.3:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2"
     # e.g. GeoService:tx:*:*:*:*:*:*:*:*:*
     # e.g. GeoService:tx:*:*:*:*:*:*:*:*:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
-
     if ('logger' in kwargs) & ('redisClient' in kwargs):
         logger = kwargs['logger']
         redisClient = kwargs['redisClient']
@@ -82,6 +83,8 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
         genderPreference = kwargs["genderPreference"] if 'genderPreference' in kwargs else "*"
         initalSearchString = f"{geoSearchQuery}:{genderPreference}"
         
+        # logger.info(f"STEP 1:{initalSearchString}")
+        
         # Add religion to query
         religionSearchQueries = []
         if 'religionPreference' in kwargs:
@@ -93,6 +96,8 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
             query = f"{initalSearchString}:{religion}"
             religionSearchQueries.append(query)
         
+        # logger.info(f"STEP 2:{religionSearchQueries}")
+
         # Age Preference to query
         ageSearchQueries = []
         minAgePreference = kwargs["minAgePreference"] if 'minAgePreference' in kwargs else None
@@ -106,20 +111,17 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
             for previousQuery in religionSearchQueries:
                 ageSearchQueries.append(f"{previousQuery}:*") 
                 
-        # Add profile id to filter on
-        profileId = kwargs["profileId"] if 'profileId' in kwargs else "*"
+        # logger.info(f"STEP 3:{ageSearchQueries}")
         
-        logger.info(f"{ageSearchQueries}")
+        # Add Profile id to filter on
+        profileId = kwargs["profileId"] if 'profileId' in kwargs else "*"
         
         allProfilesMatch = []
         for query in ageSearchQueries:
             query = f"{query}:{profileId}"
-            logger.info(f"{query} execution query on redis")
             profileMatches = [key for key in redisClient.scan_iter(f"{query}")]
             allProfilesMatch.extend(profileMatches)
-        
-        # Log matching proiles
-        log_profiles(allProfilesMatch=allProfilesMatch, logger=logger)
+            log_profiles(query=query, allProfilesMatch=allProfilesMatch, logger=logger)
 
         return profileMatches
     except Exception as e:
@@ -127,8 +129,18 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
         logger.exception(e)
         return False
 
+def log_profiles(query=None, allProfilesMatch=None, logger=None):
+    logger.info(f"===============")
+    logger.info(f"{query} execution query on redis")
+    for profileId in allProfilesMatch:
+        logger.info(profileId)
+    
 
-def calculate_geo_hash_from_radius(radius=None):
+# Accepts geoService redis keys which just provide list of ids
+def Geoservice_get_profile_Ids_from_redis_key(redisKeys=None):
+    return [key.split(":")[-1] for key in redisKeys]
+
+def Geoservice_calculate_geo_hash_from_radius(radius=None):
     if radius <= 5:
         return "geohash5"
     elif radius <= 50:
@@ -141,34 +153,52 @@ def calculate_geo_hash_from_radius(radius=None):
         return "geohash1"
     
 
-def log_profiles(allProfilesMatch=None, logger=None):
-    logger.info("********** Matching Profiles Found ********** ")
-    for profileId in allProfilesMatch:
-        logger.info(profileId)
-    
-
 def GeoService_get_recommended_profiles_for_user(userId=None, filterData=None, redisClient=None, logger=None):
     try:
-        # e.g. GeoService:dh:dhv:dhv6:dhv65:dhv65tqesm:female:Other:27:5.3:xlPsz0jEL5oMjNxqLNKk
-        userGeoServicekey = GeoService_get_fitered_profiles_on_params(profileId=userId, redisClient=redisClient, logger=logger)
-        if len(userGeoServicekey)==0:
-            logger.error(f"Unable to get recommendation for {userId}")
-            return False
-        # Get the only profile match from the query
-        profileKey = userGeoServicekey.pop()
-        userData = redisClient.mget(profileKey)
-        userData = userData.pop()
-        # Convert the profile from string to dictionary
-        userData = json.loads(userData)
-        # Get filter the user wants
-        geohashtype = calculate_geo_hash_from_radius(radius=filterData['radiusDistance'])
-        # geohashtype = userData[geohashtype]
-        recommendedProfilesKeys = GeoService_get_fitered_profiles_on_params(geohash2 = userData["geohash2"],
-                                                                            redisClient=redisClient,
-                                                                            logger=logger)
-        logger.info(f"{userId}: {len(recommendedProfilesKeys)} recommendations fetched for user")
-        return (userData, recommendedProfilesKeys)
+        redisGeoServicesKeys = GeoServices_get_redis_key_list_of_ids(profileIdList=[userId],redisClient=redisClient, logger=logger)
+        if redisGeoServicesKeys:
+            profileId = redisGeoServicesKeys.pop()
+            userData = redisClient.mget(profileId)
+            userData = userData.pop()
+            # Convert the profile from string to dictionary
+            userData = json.loads(userData)
+            # Get filter the user wants
+            geohashtype = Geoservice_calculate_geo_hash_from_radius(radius=filterData['radiusDistance'])
+            # geohashtype = userData[geohashtype]
+            recommendedProfilesKeys = GeoService_get_fitered_profiles_on_params(geohash2 = userData["geohash2"],
+                                                                                redisClient=redisClient,
+                                                                                logger=logger)
+            logger.info(f"{userId}: {len(recommendedProfilesKeys)} recommendations fetched for user")
+            return (userData, recommendedProfilesKeys)
+        return False
     except Exception as e:
         logger.exception(f"Unable to get recommendation for {userId}")
         logger.exception(e)
         return False
+
+
+def GeoServices_get_redis_key_list_of_ids(profileIdList=None, redisClient=None, logger=None):
+    try:
+        redisGeoKeysList = []
+        # e.g. GeoService:dh:dhv:dhv6:dhv65:dhv65tqesm:female:Other:27:5.3:xlPsz0jEL5oMjNxqLNKk
+        for profileId in profileIdList:
+            userGeoServicekey = GeoService_get_fitered_profiles_on_params(profileId=profileId, redisClient=redisClient, logger=logger)
+            if len(userGeoServicekey)==0:
+                logger.error(f"Unable to find a GeoService profile for ID for {profileId}")
+                continue
+            # Get the only profile match from the query
+            redisGeoKeysList.append(userGeoServicekey.pop())
+        # return false if no match was found
+        return redisGeoKeysList if len(redisGeoKeysList) != 0 else False
+    except Exception as e:
+        logger.exception(f"Unable to get geo keys for ids: {profileIdList}")
+        logger.exception(e)
+        return False
+
+    
+        
+
+        
+        
+
+        
