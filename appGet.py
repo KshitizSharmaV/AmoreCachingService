@@ -111,7 +111,7 @@ def get_likes_dislikes_for_user_route():
                                                                  logger=current_app.logger, async_db=async_db))
         profiles_array_future = profiles_array_future.result()
         current_app.logger.info(f"Fetched for {currentUserId} {collectionNameChild} {matchFor}: {len(profiles_array_future)}")
-        # current_app.logger.warning(json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str))
+        # current_app.logger.info(json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str))
         return json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str)
     except Exception as e:
         current_app.logger.error(f"Failed to get the Likes Dislikes for user from gateway")

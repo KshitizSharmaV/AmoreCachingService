@@ -96,7 +96,7 @@ async def get_profile_by_ids(redisClient=None, profileIdList=None, logger=None, 
             # Iterate over the cached profiles cursor
             allProfilesData = [json.loads(profile) for profile in profiles_array if profile]
             # Check if profile is missing from the response data, means profile not in cache
-            if len(redisGeoServicesKeys) != len(allProfilesData):
+            if len(profileIdList) != len(allProfilesData):
                 # Oh oh - Looks like profile is missing from cache. 
                 profileIdsNotInCache = get_profiles_not_in_cache(profileIdList=profileIdList, redisClient=redisClient)
                 newProfilesCached = await load_profiles_to_cache_from_firebase(profileIdsNotInCache=profileIdsNotInCache,

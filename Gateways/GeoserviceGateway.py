@@ -39,10 +39,17 @@ async def GeoService_store_profiles(profile=None, redisClient=None, logger=None)
         userDataFields = list(profile.keys())
         religion = profile['religion'] if 'religion' in userDataFields else "Other"
         # e.g. "GeoService:ts:tsx:tsx3:tsx3u:tsx3uuq6w1:male:45:8OQ8W2v6nOT4y3kqYqvVXFpQOaT2
+        matchingRedisKeys = GeoService_get_fitered_profiles_on_params(profileId=profile['id'],
+                                                                    redisClient=redisClient, 
+                                                                    logger=logger)
+        # If a GeoService key already exists for the profile in cache; then delete it first
+        if len(matchingRedisKeys) > 0:
+            logger.info(f"Deleting:{matchingRedisKeys} from cache")
+            redisClient.delete(matchingRedisKeys.pop())
         key = f"GeoService:{profile['geohash1']}:{profile['geohash2']}:{profile['geohash3']}:{profile['geohash4']}:{profile['geohash5']}:{profile['geohash']}:{profile['genderIdentity']}:{religion}:{profile['age']}:{profile['id']}"
         jsonObject_dumps = json.dumps(profile, indent=4, sort_keys=True, default=str)
         redisClient.set(key, jsonObject_dumps)
-        logger.info(f"{key} storage was success")
+        logger.info(f"New Geoservice key stored in cache:{key}")
         return True
     except Exception as e:
         logger.exception(f"{profile['id']}: Recommendation caching failed")
