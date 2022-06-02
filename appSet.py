@@ -7,7 +7,7 @@ from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import async_store_likes_dislikes_superlikes_for_user
-from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function
+from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function, report_profile_task
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 import logging
 import asyncio
@@ -101,6 +101,12 @@ def rewind_single_swipe():
 
 @current_app.route('/storeProfileInBackendGate', methods=['POST'])
 def store_profile():
+    """
+    Stores Profile in Cache.
+    Request Parameters:
+        - profile: Dict/JSON containing Profile information of the currently logged-in user.
+    Returns: Status Message for Amore Flask.
+    """
     try:
         profile = request.get_json().get('profile')
         # Update the cache with profile data?
@@ -118,3 +124,30 @@ def store_profile():
         response = jsonify({'message': 'An error occured in API /storeProfileInBackendGate'})
         response.status_code = 400
         return response
+
+
+@current_app.route('/reportprofilegate', methods=['POST'])
+def report_profile():
+    """
+    Report Profile API:
+        - Report Profile Task: View Function Docstring for explanation
+        - Unmatch Task: View Function Docstring for explanation
+    Returns: Status Message for Amore Flask.
+    """
+    current_user_id, reported_profile_id = None, None
+    try:
+        current_user_id = request.get_json().get('current_user_id')
+        reported_profile_id = request.get_json().get('other_user_id')
+        reason_given = request.get_json().get('reasonGiven')
+        description_given = request.get_json().get('descriptionGiven')
+        status = report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
+                                     reason_given=reason_given, description_given=description_given,
+                                     redis_client=redisClient)
+        future = run_coroutine(unmatch_task_function(current_user_id=current_user_id, other_user_id=reported_profile_id,
+                                                     redis_client=redisClient))
+        future.result()
+        current_app.logger.info(f"Successfully reported profile {reported_profile_id}")
+        return jsonify({'status': 200})
+    except Exception as e:
+        current_app.logger.exception(f"Unable to report profile {reported_profile_id}")
+        current_app.logger.exception(e)

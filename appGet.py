@@ -70,15 +70,23 @@ def get_profiles_already_seen_by_user_route():
 
 @current_app.route('/fetchGeoRecommendationsGate', methods=['POST'])
 def fetch_geo_recommendations():
+    """
+    Fetch recommendations based on filters and location
+
+    Request Parameters:
+        - profilesCountLeftInDeck: Cards left in deck (Unused)
+        - filterData: Filters defined by user including geohashes
+    :return: List of recommended profiles(Dicts/JSONs)
+    """
     try:
         userId = request.get_json().get('userId')
         profilesCountLeftInDeck = request.get_json().get('CountLeftInDeck')
         filterData = request.get_json().get('filterData')
         profilesList = GeoService_get_recommended_profiles_for_user(userId=userId,
-                                                                        filterData=filterData,
-                                                                        redisClient=redisClient,
-                                                                        logger=current_app.logger)
-        profilesList = profilesList[1] if len(profilesList) > 0 else profilesList
+                                                                    filterData=filterData,
+                                                                    redisClient=redisClient,
+                                                                    logger=current_app.logger)
+        profilesList = profilesList[1] if len(profilesList) > 0 else []
         profiles_array = list(map(redisClient.mget, profilesList))
         profiles_array = [json.loads(profile_string[0]) for profile_string in profiles_array]
         current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
