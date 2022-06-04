@@ -198,9 +198,10 @@ def GeoService_get_recommended_profiles_for_user(userId=None, filterData=None, r
     """
     userData, recommendedProfilesKeys = None, []
     try:
-        redisGeoServicesKeys = GeoServices_get_redis_key_list_of_ids(profileIdList=[userId],redisClient=redisClient, logger=logger)
-        if len(redisGeoServicesKeys) > 0:
-            profileId = redisGeoServicesKeys.pop()
+        # Gives the profile of the user who is asking for recommendations
+        redisGeoServicesKeysForUser = GeoServices_get_redis_key_list_of_ids(profileIdList=[userId],redisClient=redisClient, logger=logger)
+        if len(redisGeoServicesKeysForUser) > 0:
+            profileId = redisGeoServicesKeysForUser.pop()
             userData = redisClient.mget(profileId)
             userData = userData.pop()
             # Convert the profile from string to dictionary

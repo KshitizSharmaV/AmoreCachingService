@@ -51,7 +51,7 @@ async def LikesDislikes_async_store_swipe_task(firstUserId=None, secondUserId=No
         redisBaseKey = f"LikesDislikes:{firstUserId}:{collectionNameChild}:{swipeStatusBetweenUsers}"
         storeData = {"swipe": swipeStatusBetweenUsers, "timestamp": time.time(), 'matchVerified': False}
         await async_db.collection('LikesDislikes').document(firstUserId).collection(collectionNameChild).document(secondUserId).set(storeData)
-        redisClient.lpush(redisBaseKey,secondUserId)
+        redisClient.sadd(redisBaseKey,secondUserId)
         logger.info(f"{redisBaseKey} successfully stored {secondUserId} in firestore/redis")
         return True
     except Exception as e:
@@ -83,7 +83,7 @@ def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionN
     try:
         redisBaseKey = f"LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}"
         # Check if Likesdislikes for profile already exist in cache
-        if redisClient.llen(redisBaseKey) > 0:
+        if redisClient.scard(redisBaseKey) > 0:
             profileIds = LikesDislikes_fetch_data_from_redis(userId=userId, 
                                                             collectioNameChild=collectionNameChild, 
                                                             swipeStatusBetweenUsers=swipeStatusBetweenUsers,
@@ -124,7 +124,7 @@ def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=
             swipeStatusBetweenUsers = dictDoc["swipe"] if "swipe" in dictDoc else collectionNameChild
             completeRedisKey = f"{redisBaseKey}:{swipeStatusBetweenUsers}"
             # Push multiple values through the HEAD of the list
-            redisClient.lpush(completeRedisKey,profileId)
+            redisClient.sadd(completeRedisKey,profileId)
             logger.info(f"{profileId} was pushed to stack {completeRedisKey}")
         return profileIds
     except Exception as e:
@@ -140,9 +140,8 @@ def LikesDislikes_fetch_data_from_redis(userId=None, collectioNameChild=None, sw
     '''
     try:
         redisBaseKey = f"LikesDislikes:{userId}:{collectioNameChild}:{swipeStatusBetweenUsers}"
-        profileIds = []
-        # Redis function 'llen' will give you the length of list items inside redis key
-        _ = [profileIds.append(redisClient.lindex(redisBaseKey,i)) for i in range(0, redisClient.llen(redisBaseKey))]
+        # Redis function 'smembers' will give you the length of set inside redis key
+        profileIds = list(redisClient.smembers(redisBaseKey))
         logger.info(f"Fetched {len(profileIds)} from cache:{redisBaseKey}")
         return profileIds
     except Exception as e:

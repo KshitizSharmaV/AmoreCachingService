@@ -46,6 +46,7 @@ async def write_one_profile_to_cache_after_firebase_read(profileId=None, redisCl
 # function accepts multiple Profile IDs
 async def load_profiles_to_cache_from_firebase(profileIdsNotInCache=None, redisClient=None, logger=None, async_db=None):
     logger.warning(f'{len(profileIdsNotInCache)} GeoService profiles not found in cache')
+    logger.warning(f'Loading profile from firestore {profileIdsNotInCache}')
     newProfilesCached = await asyncio.gather(
         *[write_one_profile_to_cache_after_firebase_read(profileId=profileId, redisClient=redisClient,
                                                          logger=logger, async_db=async_db) for profileId in
@@ -55,13 +56,11 @@ async def load_profiles_to_cache_from_firebase(profileIdsNotInCache=None, redisC
 
 
 def get_profiles_not_in_cache(profileIdList=None, redisClient=None):
-    allCachedProfileIds = get_cached_profile_ids(redisClient=redisClient,
-                                                 cacheFilterName="GeoService")
+    allGeoServiceProfileIdsInCache = [key for key in redisClient.scan_iter(f"GeoService:*")]
+    allCachedProfileIds = [profileId.split(":")[-1] for profileId in allGeoServiceProfileIdsInCache]
     return list(set(profileIdList) - set(allCachedProfileIds))
 
-
 def get_cached_profile_ids(redisClient=None, cacheFilterName=None):
-    profileIdsInCache = [key for key in redisClient.scan_iter(f"{cacheFilterName}:*")]
     profileIdsInCache = [profile_id.replace(f"{cacheFilterName}:", "") for profile_id in profileIdsInCache]
     return profileIdsInCache
 
