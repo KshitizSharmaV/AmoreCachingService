@@ -7,7 +7,7 @@ from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.ProfilesGateway import *
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user, GeoService_get_fitered_profiles_on_params, Geoservice_get_profile_Ids_from_redis_key
-from Gateways.LikesDislikesGateway import *
+from Gateways.LikesDislikesGateway import LikesDislikes_fetch_Userdata_from_firebase_or_redis
 
 import logging
 import traceback
@@ -30,24 +30,6 @@ def get_profiles_by_ids():
         current_app.logger.error(f"Failed to fetch profiles from gateway")
         current_app.logger.exception(e)
         flask.abort(401, f'Unable to get profiles by ids :{profileIdList}')
-
-
-# Get the profiles ids which are store in cache.
-# Assumption: All the active profiles in firestore are in Redis cache to. - Run the ProfilesCachingService to refersh all profiles automatically
-@current_app.route('/getcachedprofileids', methods=['GET'])
-def get_cached_profile_ids_route():
-    try:
-        # Get the cacheFilterName
-        cacheFilterName = request.get_json().get('cacheFilterName')
-        cachedProfileRedisIds = GeoService_get_fitered_profiles_on_params(redisClient=redisClient, logger=current_app.logger)
-        responseData = Geoservice_get_profile_Ids_from_redis_key(redisKeys=cachedProfileRedisIds)
-        current_app.logger.info(f"{responseData}")
-        current_app.logger.info(f"{len(responseData)} Profile Ids were fetched from cache")
-        return json.dumps(responseData)
-    except Exception as e:
-        current_app.logger.error(f"Failed to get the cached user ids from gateway")
-        current_app.logger.exception(e)
-        return json.dumps({'status': False})
 
 
 # Profiles already seen by current_user -> list of profile ids
@@ -111,10 +93,10 @@ def get_likes_dislikes_for_user_route():
         currentUserId = request.get_json().get('currentUserId')
         collectionNameChild = request.get_json().get('collectionNameChild')
         matchFor = request.get_json().get('matchFor')
-        ids_list = get_swipe_infos_for_user_from_firebase(userId=currentUserId,
+        ids_list = LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=currentUserId,
                                                                      collectionNameChild=collectionNameChild,
-                                                                     matchFor=matchFor, db=db, redisClient=redisClient,
-                                                                     logger=current_app.logger)
+                                                                     swipeStatusBetweenUsers=matchFor,
+                                                                    db=db, redisClient=redisClient, logger=current_app.logger)
         profiles_array_future = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
                                                                  logger=current_app.logger, async_db=async_db))
         profiles_array_future = profiles_array_future.result()

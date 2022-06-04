@@ -152,10 +152,10 @@ def GeoService_get_fitered_profiles_on_params(**kwargs):
         return profileMatches
 
 def log_profiles(query=None, allProfilesMatch=None, logger=None):
-    logger.info(f"===============")
+    # logger.info(f"===============")
     logger.info(f"{query} execution query on redis")
-    for profileId in allProfilesMatch:
-        logger.info(profileId)
+    # for profileId in allProfilesMatch:
+    #     logger.info(profileId)
     
 
 # Accepts geoService redis keys which just provide list of ids

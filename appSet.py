@@ -6,7 +6,7 @@ from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
-from Gateways.LikesDislikesGateway import async_store_likes_dislikes_superlikes_for_user
+from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
 from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function, report_profile_task
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 import logging
@@ -56,16 +56,18 @@ def store_likes_dislikes_superlikes():
         currentUserId = request.get_json().get('currentUserId')
         swipeInfo = request.get_json().get('swipeInfo')
         swipedUserId = request.get_json().get('swipedUserId')
-        future = run_coroutine(
-            async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId, swipedUserId=swipedUserId,
-                                                           swipeInfo=swipeInfo, async_db=async_db,
-                                                           redis_client=redisClient))
+        future = run_coroutine(LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId, 
+                                                            swipedUserId=swipedUserId,
+                                                            swipeStatusBetweenUsers=swipeInfo, 
+                                                            async_db=async_db,
+                                                            redisClient=redisClient, 
+                                                            logger=current_app.logger))
         future.result()
-        current_app.logger.info(f"Successfully stored LikesDislikes:{currentUserId}:{swipedUserId}:{swipeInfo}")
         return jsonify({'status': 200})
     except Exception as e:
         current_app.logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
         current_app.logger.exception(e)
+        return False
 
 
 @current_app.route('/unmatchgate', methods=['POST'])
