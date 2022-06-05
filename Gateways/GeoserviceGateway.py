@@ -239,7 +239,7 @@ def GeoServices_get_redis_key_list_of_ids(profileIdList=None, redisClient=None, 
         for profileId in profileIdList:
             userGeoServicekey = GeoService_get_fitered_profiles_on_params(profileId=profileId, redisClient=redisClient, logger=logger)
             if len(userGeoServicekey)==0:
-                logger.error(f"Unable to find a GeoService profile for ID for {profileId}")
+                logger.warning(f"Unable to find a GeoService profile for ID for {profileId}")
                 continue
             # Get the only profile match from the query
             redisGeoKeysList.append(userGeoServicekey.pop())

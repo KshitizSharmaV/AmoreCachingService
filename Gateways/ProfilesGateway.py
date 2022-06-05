@@ -3,7 +3,6 @@ import traceback
 import json
 import time
 import flask
-from ProjectConf.AsyncioPlugin import make_sync_to_coroutine, run_coroutine
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 from redis.client import Redis
 from Gateways.GeoserviceGateway import GeoService_get_fitered_profiles_on_params, GeoServices_get_redis_key_list_of_ids
@@ -63,24 +62,6 @@ def get_profiles_not_in_cache(profileIdList=None, redisClient=None):
 def get_cached_profile_ids(redisClient=None, cacheFilterName=None):
     profileIdsInCache = [profile_id.replace(f"{cacheFilterName}:", "") for profile_id in profileIdsInCache]
     return profileIdsInCache
-
-
-async def get_profiles_already_seen_by_user(current_user_id: str = None, redis_client: Redis = None):
-    """
-    TO DO LATER: What if respective profiles not in cache
-    """
-    get_cached_profile_coro = make_sync_to_coroutine(get_cached_profile_ids)
-    given_filter = f"LikesDislikes:{current_user_id}:Given"
-    ids_given_task = asyncio.create_task(
-        get_cached_profile_coro(redisClient=redis_client, cacheFilterName=given_filter))
-    match_filter = f"LikesDislikes:{current_user_id}:Match"
-    ids_match_task = asyncio.create_task(
-        get_cached_profile_coro(redisClient=redis_client, cacheFilterName=match_filter))
-    unmatch_filter = f"LikesDislikes:{current_user_id}:Unmatch"
-    ids_unmatch_task = asyncio.create_task(
-        get_cached_profile_coro(redisClient=redis_client, cacheFilterName=unmatch_filter))
-    return await asyncio.gather(*[ids_unmatch_task, ids_match_task, ids_given_task])
-
 
 
 async def get_profile_by_ids(redisClient=None, profileIdList=None, logger=None, async_db=None):

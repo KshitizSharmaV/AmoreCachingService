@@ -4,6 +4,7 @@ import asyncio
 import time
 import json
 from ProjectConf.AsyncioPlugin import run_coroutine
+from ProjectConf.FirestoreConf import async_db, db
 
 '''
 ################################################
@@ -69,8 +70,9 @@ async def LikesDislikes_async_store_likesdislikes_updated(currentUserId=None, as
     await async_db.collection('LikesDislikes').document(currentUserId).set({"wasUpdated": True})
 
 
-def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionNameChild=None, swipeStatusBetweenUsers=None, db=None,redisClient=None, logger=None):
+async def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionNameChild=None, swipeStatusBetweenUsers=None, db=None,redisClient=None, logger=None):
     '''
+    LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}:{}
     Function is called from appGet to fetch Likesdislikes for a user
     Function returns list of profileIds under Given, Match, Received, Unmatch either from cache or firebase
     Function is also responsible for loading likesdislikes under a category for user
@@ -84,7 +86,8 @@ def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionN
         redisBaseKey = f"LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}"
         # Check if Likesdislikes for profile already exist in cache
         if redisClient.scard(redisBaseKey) > 0:
-            profileIds = LikesDislikes_fetch_data_from_redis(userId=userId, 
+            logger.info(f"Fetching LikesDislikes for {redisBaseKey} from redis")
+            profileIds = await LikesDislikes_fetch_data_from_redis(userId=userId, 
                                                             collectioNameChild=collectionNameChild, 
                                                             swipeStatusBetweenUsers=swipeStatusBetweenUsers,
                                                             redisClient=redisClient, 
@@ -92,22 +95,24 @@ def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionN
             return profileIds
         else:
             # If not fetch data from firestore & save it in cache
-            docs = db.collection("LikesDislikes").document(userId).collection(collectionNameChild). \
+            logger.info(f"Fetching LikesDislikes for {redisBaseKey} from firestore")
+            docs = async_db.collection("LikesDislikes").document(userId).collection(collectionNameChild). \
                 where(u'swipe', u'==', swipeStatusBetweenUsers).order_by(u'timestamp', direction=firestore.Query.DESCENDING)
-            profileIds = LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=docs, userId=userId,
+            profileIds = await LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=docs, userId=userId,
                                                                     collectionNameChild=collectionNameChild,
                                                                     redisClient=redisClient, logger=logger)
             return profileIds
     except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{collectionNameChild} Failure to fetch likes dislikes data from firstore")
+        logger.error(f"LikesDislikes:{userId}:{collectionNameChild} Failure to fetch likes dislikes data from firestore/cache")
         logger.exception(e)
         return []
 
 
 
-def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=None, collectionNameChild=None, redisClient=None, logger=None):
+async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=None, collectionNameChild=None, redisClient=None, logger=None):
     '''
-    Data stored in these redis key is a list of ProfileIds
+    LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}:{}
+    Store likesdislikes to redis
     LikedDislikes Redis Key is a key which store list of ProfileIds
     Accepts firestore stream object of LikesDislikes and save it to cache
     Once you fetch the LikesDislikes for user from firestore, call this function to save data in redis
@@ -115,7 +120,7 @@ def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=
     try:
         redisBaseKey = f"LikesDislikes:{userId}:{collectionNameChild}"
         profileIds = []
-        for doc in docs.stream():
+        async for doc in docs.stream():
             profileId = doc.id
             profileIds.append(profileId)
             dictDoc = doc.to_dict()
@@ -133,7 +138,7 @@ def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=
         return []
 
 
-def LikesDislikes_fetch_data_from_redis(userId=None, collectioNameChild=None, swipeStatusBetweenUsers=None, redisClient=None, logger=None):
+async def LikesDislikes_fetch_data_from_redis(userId=None, collectioNameChild=None, swipeStatusBetweenUsers=None, redisClient=None, logger=None):
     '''
     Pass in the User ID and the parameters you want LikesDislikes to filter on
     Returns a list of Profile Ids for that user under a category 
@@ -150,6 +155,24 @@ def LikesDislikes_fetch_data_from_redis(userId=None, collectioNameChild=None, sw
         return []
 
 
+async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, collectionNameChild=None, redisClient=None, logger=None):
+    '''
+    Accepts the userId and return a list of profiles already seen by user
+    '''
+    try:
+        idsAlreadySeenByUser = []
+        asyncGetProfiles = await asyncio.gather(*[LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=userId, 
+                                                            collectionNameChild=collectionNameChild, 
+                                                            swipeStatusBetweenUsers=swipeInfo,
+                                                            redisClient=redisClient, 
+                                                            logger=logger) 
+                                                            for swipeInfo in ["Likes","Dislikes","Superlikes"]])
+        _ = [idsAlreadySeenByUser.extend(profile) for profile in asyncGetProfiles if profile is not None]
+        return idsAlreadySeenByUser
+    except Exception as e:
+        logger.error(f"Unable to fetch profiles already seen by user LikesDislikes:{userId}:{collectionNameChild}")
+        logger.exception(e)
+        return []
 
 # Function not in use
 # # Unmatch from a user
@@ -166,3 +189,14 @@ def LikesDislikes_fetch_data_from_redis(userId=None, collectioNameChild=None, sw
 #         await match_ref.delete()
 #         unmatch_ref = async_db.collection('LikesDislikes').document(userId1).collection("Unmatch").document(userId2)
 #         await unmatch_ref.set(match_doc)
+    # given_filter = f"LikesDislikes:{current_user_id}:Given"
+    # ids_given_task = asyncio.create_task(get_cached_profile_coro(redisClient=redis_client, cacheFilterName=given_filter))
+
+    # match_filter = f"LikesDislikes:{current_user_id}:Match"
+    # ids_match_task = asyncio.create_task(
+    #     get_cached_profile_coro(redisClient=redis_client, cacheFilterName=match_filter))
+    # unmatch_filter = f"LikesDislikes:{current_user_id}:Unmatch"
+    # ids_unmatch_task = asyncio.create_task(
+    #     get_cached_profile_coro(redisClient=redis_client, cacheFilterName=unmatch_filter))
+    # return await asyncio.gather(*[ids_unmatch_task, ids_match_task, ids_given_task])
+

@@ -6,8 +6,8 @@ from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.ProfilesGateway import *
-from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user, GeoService_get_fitered_profiles_on_params, Geoservice_get_profile_Ids_from_redis_key
-from Gateways.LikesDislikesGateway import LikesDislikes_fetch_Userdata_from_firebase_or_redis
+from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
+from Gateways.LikesDislikesGateway import LikesDislikes_fetch_Userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
 
 import logging
 import traceback
@@ -30,24 +30,6 @@ def get_profiles_by_ids():
         current_app.logger.error(f"Failed to fetch profiles from gateway")
         current_app.logger.exception(e)
         flask.abort(401, f'Unable to get profiles by ids :{profileIdList}')
-
-
-# Profiles already seen by current_user -> list of profile ids
-@current_app.route('/getprofilesalreadyseen', methods=['POST'])
-def get_profiles_already_seen_by_user_route():
-    try:
-        current_user_id = request.get_json().get('currentUserId')
-        future = run_coroutine(get_profiles_already_seen_by_user(current_user_id=current_user_id,
-                                                                 redis_client=redisClient))
-        ids_already_seen_by_user = future.result()
-        ids_already_seen_by_user = chain(*ids_already_seen_by_user)
-        response_data = [profile_id.split(':')[0] for profile_id in ids_already_seen_by_user]
-        current_app.logger.info(f"{len(response_data)} Already seen profiles Ids were fetched from cache")
-        return json.dumps(response_data)
-    except Exception as e:
-        current_app.logger.error(f"Failed to get the already seen cached profiles ids from gateway")
-        current_app.logger.exception(e)
-        return json.dumps({'status': False})
 
 
 @current_app.route('/fetchGeoRecommendationsGate', methods=['POST'])
@@ -83,20 +65,25 @@ def fetch_geo_recommendations():
         return response
 
 
-# Profiles already seen by current_user -> list of profile ids
+# Get LikesDislikes for Super Likes, Received view
 @current_app.route('/getlikesdislikesforuser', methods=['GET'])
 def get_likes_dislikes_for_user_route():
     """
-    Returns list of Profile IDs for the given type of Swipe (Like Given, Dislike Given, Like Received, etc.)
+    Returns list of Profile IDs for the given type of CollectionName(Given, Received)
+    & Swipe (Like Given, Dislike Given, Like Received, etc.)
     """
     try:
         currentUserId = request.get_json().get('currentUserId')
         collectionNameChild = request.get_json().get('collectionNameChild')
         matchFor = request.get_json().get('matchFor')
-        ids_list = LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=currentUserId,
+        # Get profile ids for given filter in likesdislikes
+        ids_list = run_coroutine(LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=currentUserId,
                                                                      collectionNameChild=collectionNameChild,
                                                                      swipeStatusBetweenUsers=matchFor,
-                                                                    db=db, redisClient=redisClient, logger=current_app.logger)
+                                                                    db=db, redisClient=redisClient, logger=current_app.logger))
+        ids_list = ids_list.result()         
+        
+        # Get profile data for ids                                    
         profiles_array_future = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
                                                                  logger=current_app.logger, async_db=async_db))
         profiles_array_future = profiles_array_future.result()
@@ -107,3 +94,24 @@ def get_likes_dislikes_for_user_route():
         current_app.logger.error(f"Failed to get the Likes Dislikes for user from gateway")
         current_app.logger.exception(e)
         return flask.abort(401, f'Unable to get likes dislikes for users {currentUserId} {collectionNameChild} {matchFor}')
+
+
+# Profiles already seen by current_user -> list of profile ids
+@current_app.route('/getprofilesalreadyseen', methods=['GET'])
+def get_profiles_already_seen_by_user_route():
+    '''
+    Get profiles already seen by user
+    '''
+    try:
+        userId = request.get_json().get('currentUserId')
+        idsAlreadySeenByUser = run_coroutine(LikesDislikes_get_profiles_already_seen_by_id(userId=userId, 
+                                                                            collectionNameChild="Given", 
+                                                                            redisClient=redisClient, 
+                                                                            logger=current_app.logger)) 
+        idsAlreadySeenByUser = idsAlreadySeenByUser.result()                                                    
+        current_app.logger.info(f"{len(idsAlreadySeenByUser)} Already seen profiles Ids were fetched from cache")
+        return json.dumps(idsAlreadySeenByUser)
+    except Exception as e:
+        current_app.logger.error(f"Failed to get the already seen cached profiles ids from gateway")
+        current_app.logger.exception(e)
+        return json.dumps({'status': False})
