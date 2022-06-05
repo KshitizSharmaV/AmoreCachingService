@@ -22,6 +22,9 @@ def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
         profileIdList = request.get_json().get('profileIdList')
+        print("*************")
+        print(profileIdList)
+        print("*************")
         allProfilesData = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=profileIdList,
                                                            logger=current_app.logger, async_db=async_db))
         allProfilesData = allProfilesData.result()
@@ -52,10 +55,13 @@ def fetch_geo_recommendations():
                                                                     logger=current_app.logger)
         profilesList = profilesList[1] if len(profilesList) > 0 else []
         profiles_array = list(map(redisClient.mget, profilesList))
-        profiles_array = [json.loads(profile_string[0]) for profile_string in profiles_array]
-        current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
-        response = jsonify({'message': f"{userId}: Successfully fetched recommendations"})
-        response.status_code = 200
+        # Check if there are profiles in the array
+        if len(profiles_array) > 0:
+            profiles_array = [json.loads(profile_string[0]) for profile_string in profiles_array]
+            current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
+        else:
+            profiles_array = []
+            current_app.logger.warning(f"{userId}: No profile fetched for user")    
         return jsonify(profiles_array)
     except Exception as e:
         current_app.logger.exception(f"{userId}: Unable to fetch recommendations")
