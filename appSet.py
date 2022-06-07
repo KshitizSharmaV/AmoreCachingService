@@ -1,3 +1,4 @@
+from tempfile import TemporaryFile
 import flask
 from flask import Blueprint, current_app, jsonify, request
 import json
@@ -7,7 +8,9 @@ from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
-from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function, report_profile_task
+from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
+from Gateways.RewindGateway import Rewind_task_function
+from Gateways.ReportProfile import Report_profile_task
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 import logging
@@ -28,7 +31,7 @@ def store_profile_grading_score():
         logger.info("Received new grading scores to be stored to firestore and cache")
         logger.info(normalizedAllProfileScoresDf)
         future = run_coroutine(
-            store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
+                    store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
                                                     redisClient=redisClient,
                                                     logger=current_app.logger,
                                                     async_db=async_db))
@@ -77,7 +80,7 @@ def unmatch():
     try:
         current_user_id = request.get_json().get('current_user_id')
         other_user_id = request.get_json().get('other_user_id')
-        future = run_coroutine(unmatch_task_function(current_user_id=current_user_id, other_user_id=other_user_id,
+        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, other_user_id=other_user_id,
                                                      redis_client=redisClient))
         future.result()
         current_app.logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
@@ -93,7 +96,7 @@ def rewind_single_swipe():
         current_user_id = request.get_json().get('currentUserID')
         swipe_info = request.get_json().get('swipeInfo')
         swiped_user_id = request.get_json().get('swipedUserID')
-        future = run_coroutine(rewind_task_function(current_user_id=current_user_id, swiped_user_id=swiped_user_id,
+        future = run_coroutine(Rewind_task_function(current_user_id=current_user_id, swiped_user_id=swiped_user_id,
                                                     redis_client=redisClient, logger=current_app.logger))
         future.result()
         current_app.logger.info(f"Successfully rewinded {swipe_info} by {current_user_id}")
@@ -144,10 +147,10 @@ def report_profile():
         reported_profile_id = request.get_json().get('other_user_id')
         reason_given = request.get_json().get('reasonGiven')
         description_given = request.get_json().get('descriptionGiven')
-        status = report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
+        status = Report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
                                      reason_given=reason_given, description_given=description_given,
                                      redis_client=redisClient)
-        future = run_coroutine(unmatch_task_function(current_user_id=current_user_id, other_user_id=reported_profile_id,
+        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, other_user_id=reported_profile_id,
                                                      redis_client=redisClient))
         future.result()
         current_app.logger.info(f"Successfully reported profile {reported_profile_id}")

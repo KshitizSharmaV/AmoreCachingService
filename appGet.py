@@ -8,6 +8,7 @@ from ProjectConf.FirestoreConf import async_db, db
 from Gateways.ProfilesGateway import *
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
 from Gateways.LikesDislikesGateway import LikesDislikes_fetch_Userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
+from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users, MatchUnmatch_fetch_userdata_from_firebase_or_redis
 
 import logging
 import traceback
@@ -22,9 +23,6 @@ def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
         profileIdList = request.get_json().get('profileIdList')
-        print("*************")
-        print(profileIdList)
-        print("*************")
         allProfilesData = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=profileIdList,
                                                            logger=current_app.logger, async_db=async_db))
         allProfilesData = allProfilesData.result()
@@ -86,7 +84,7 @@ def get_likes_dislikes_for_user_route():
         ids_list = run_coroutine(LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=currentUserId,
                                                                      collectionNameChild=collectionNameChild,
                                                                      swipeStatusBetweenUsers=matchFor,
-                                                                    db=db, redisClient=redisClient, logger=current_app.logger))
+                                                                    redisClient=redisClient, logger=current_app.logger))
         ids_list = ids_list.result()         
         
         # Get profile data for ids                                    
@@ -121,3 +119,38 @@ def get_profiles_already_seen_by_user_route():
         current_app.logger.error(f"Failed to get the already seen cached profiles ids from gateway")
         current_app.logger.exception(e)
         return json.dumps({'status': False})
+
+
+@current_app.route('/loadmatchesunmatchesgate', methods=['POST'])
+def load_match_unmatch_profiles():
+    """
+    Store match unmatch profiles for user in redi
+    : param userId: user id you want to save match unmatches in redis
+    : param fromCollection: Match or Unmatch
+    """
+    try:
+        userId = request.get_json().get('userId')
+        # fromCollection always receives Match from API, though we load both Match and Unmatch profiles incache
+        fromCollection = request.get_json().get('fromCollection')
+        
+        ids_list = run_coroutine(MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, 
+                                                                                childCollectionName=fromCollection, 
+                                                                                redisClient=redisClient, 
+                                                                                logger=current_app.logger))
+        ids_list = ids_list.result()         
+        if len(ids_list) > 0:
+            # Get profile data for ids                                    
+            profiles_array_future = run_coroutine(get_profile_by_ids(redisClient=redisClient, 
+                                                                    profileIdList=ids_list,
+                                                                    logger=current_app.logger, 
+                                                                    async_db=async_db))
+            profiles_array_future = profiles_array_future.result()
+            current_app.logger.info(f"MatchUnmatch:{userId}:{fromCollection} fetched {len(profiles_array_future)} profiles")
+        else:
+            profiles_array_future = []
+            current_app.logger.warning(f"MatchUnmatch:{userId}:{fromCollection} fetched {len(profiles_array_future)} profiles")
+        return json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str)
+    except Exception as e:
+        current_app.logger.exception(f"{userId} unable to load {fromCollection} for user")
+        current_app.logger.exception(e)
+        return flask.abort(401, f'{userId} unable to load {fromCollection} for user')
