@@ -9,6 +9,7 @@ from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_rout
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
 from Gateways.UnmatchRewindGateway import rewind_task_function, unmatch_task_function, report_profile_task
 from Gateways.GeoserviceGateway import GeoService_store_profiles
+from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 import logging
 import asyncio
 import traceback
@@ -56,16 +57,17 @@ def store_likes_dislikes_superlikes():
         currentUserId = request.get_json().get('currentUserId')
         swipeInfo = request.get_json().get('swipeInfo')
         swipedUserId = request.get_json().get('swipedUserId')
-        future = run_coroutine(LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId, 
-                                                            swipedUserId=swipedUserId,
-                                                            swipeStatusBetweenUsers=swipeInfo, 
-                                                            async_db=async_db,
-                                                            redisClient=redisClient, 
-                                                            logger=current_app.logger))
+        future = run_coroutine(LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId,
+                                                                                            swipedUserId=swipedUserId,
+                                                                                            swipeStatusBetweenUsers=swipeInfo,
+                                                                                            async_db=async_db,
+                                                                                            redisClient=redisClient,
+                                                                                            logger=current_app.logger))
         future.result()
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
+        current_app.logger.exception(
+            f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
         current_app.logger.exception(e)
         return False
 
@@ -113,11 +115,11 @@ def store_profile():
         profile = request.get_json().get('profile')
         # Update the cache with profile data?
         future = run_coroutine(GeoService_store_profiles(profile=profile,
-                                                        redisClient=redisClient, 
-                                                        logger=current_app.logger))
+                                                         redisClient=redisClient,
+                                                         logger=current_app.logger))
         result = future.result()
         current_app.logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
-        response = jsonify({'message':f"{profile['id']}: Successfully stored profile in Cache/DB"})
+        response = jsonify({'message': f"{profile['id']}: Successfully stored profile in Cache/DB"})
         response.status_code = 200
         return response
     except Exception as e:
@@ -152,4 +154,27 @@ def report_profile():
         return jsonify({'status': 200})
     except Exception as e:
         current_app.logger.exception(f"Unable to report profile {reported_profile_id}")
+        current_app.logger.exception(e)
+
+
+@current_app.route('/matchondirectmessageGate', methods=['POST'])
+def match_profiles_on_direct_message():
+    """
+    Report Profile API:
+        - Report Profile Task: View Function Docstring for explanation
+        - Unmatch Task: View Function Docstring for explanation
+    Returns: Status Message for Amore Flask.
+    """
+    current_user_id, other_user_id = None, None
+    try:
+        current_user_id = request.get_json().get('currentUserId')
+        other_user_id = request.get_json().get('otherUserId')
+        future = run_coroutine(
+            match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id,
+                                                  async_db=async_db, logger=logger, redis_client=redisClient))
+        _ = future.result()
+        current_app.logger.info(f"Successfully matched profile {current_user_id} and {other_user_id}")
+        return jsonify({'status': 200})
+    except Exception as e:
+        current_app.logger.exception(f"Unable to match profiles {current_user_id} and {other_user_id}")
         current_app.logger.exception(e)
