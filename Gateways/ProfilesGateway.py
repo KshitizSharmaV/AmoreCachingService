@@ -33,12 +33,12 @@ async def write_one_profile_to_cache_after_firebase_read(profileId=None, redisCl
             return profile
         else:
             # System should never receive an unrecognized ID
-            logger.error(f"{profileId}: Unable to find profile in FirStore")
+            logger.error(f"{profileId}: Unable to find profile in FireStore")
             return
     except Exception as e:
         logger.error(e)
         logger.error(traceback.format_exc())
-        logger.error(f"{profileId}: Failed to fetch profile from FirStore")
+        logger.error(f"{profileId}: Failed to fetch profile from FireStore")
         return
 
 

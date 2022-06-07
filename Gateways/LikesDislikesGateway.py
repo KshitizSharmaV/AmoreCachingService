@@ -70,7 +70,7 @@ async def LikesDislikes_async_store_likesdislikes_updated(currentUserId=None, as
     await async_db.collection('LikesDislikes').document(currentUserId).set({"wasUpdated": True})
 
 
-async def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionNameChild=None, swipeStatusBetweenUsers=None, db=None,redisClient=None, logger=None):
+async def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionNameChild=None, swipeStatusBetweenUsers=None,redisClient=None, logger=None):
     '''
     LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}:{}
     Function is called from appGet to fetch Likesdislikes for a user
@@ -124,7 +124,6 @@ async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, u
             profileId = doc.id
             profileIds.append(profileId)
             dictDoc = doc.to_dict()
-            jsonObject_dumps = json.dumps(dictDoc, indent=4, sort_keys=True, default=str)
             # Fetch if the Other User received a Like, SuperLike or Dislike inside a Given, Received collection
             swipeStatusBetweenUsers = dictDoc["swipe"] if "swipe" in dictDoc else collectionNameChild
             completeRedisKey = f"{redisBaseKey}:{swipeStatusBetweenUsers}"
