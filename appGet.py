@@ -7,8 +7,9 @@ from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.ProfilesGateway import *
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
-from Gateways.LikesDislikesGateway import LikesDislikes_fetch_Userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
-from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users, MatchUnmatch_fetch_userdata_from_firebase_or_redis
+from Gateways.LikesDislikesGateway import LikesDislikes_fetch_userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
+from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
+from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
 
 import logging
 import traceback
@@ -23,7 +24,7 @@ def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
         profileIdList = request.get_json().get('profileIdList')
-        allProfilesData = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=profileIdList,
+        allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=profileIdList,
                                                            logger=current_app.logger, async_db=async_db))
         allProfilesData = allProfilesData.result()
         return json.dumps(allProfilesData, indent=4, sort_keys=True, default=str)
@@ -81,14 +82,14 @@ def get_likes_dislikes_for_user_route():
         collectionNameChild = request.get_json().get('collectionNameChild')
         matchFor = request.get_json().get('matchFor')
         # Get profile ids for given filter in likesdislikes
-        ids_list = run_coroutine(LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=currentUserId,
+        ids_list = run_coroutine(LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=currentUserId,
                                                                      collectionNameChild=collectionNameChild,
                                                                      swipeStatusBetweenUsers=matchFor,
                                                                     redisClient=redisClient, logger=current_app.logger))
         ids_list = ids_list.result()         
         
         # Get profile data for ids                                    
-        profiles_array_future = run_coroutine(get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
+        profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
                                                                  logger=current_app.logger, async_db=async_db))
         profiles_array_future = profiles_array_future.result()
         current_app.logger.info(f"Fetched for {currentUserId} {collectionNameChild} {matchFor}: {len(profiles_array_future)}")
@@ -140,7 +141,7 @@ def load_match_unmatch_profiles():
         ids_list = ids_list.result()         
         if len(ids_list) > 0:
             # Get profile data for ids                                    
-            profiles_array_future = run_coroutine(get_profile_by_ids(redisClient=redisClient, 
+            profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, 
                                                                     profileIdList=ids_list,
                                                                     logger=current_app.logger, 
                                                                     async_db=async_db))

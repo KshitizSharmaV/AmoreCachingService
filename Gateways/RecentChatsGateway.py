@@ -5,7 +5,7 @@ import time
 from redis.client import Redis
 from ProjectConf.FirestoreConf import async_db, db
 
-async def RecentChats_Unmatch_Delete_Chat(user_id_1: str = None, user_id_2: str = None, redis_client: Redis = None):
+async def RecentChats_Unmatch_Delete_Chat(user_id_1: str = None, user_id_2: str = None, redis_client: Redis = None, logger=None):
     """
     Delete the recent chat from firestore
     :param user_id_1: Current User's UID

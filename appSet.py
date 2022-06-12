@@ -54,7 +54,7 @@ def store_likes_dislikes_superlikes():
         """
         Body of Request contains following payloads:
         - current user id
-        - swipe info: Like, Dislike, Superlike
+        - swipe info: Like, Dislike, Superlikes
         - swiped profile id
         """
         currentUserId = request.get_json().get('currentUserId')
@@ -67,6 +67,7 @@ def store_likes_dislikes_superlikes():
                                                                                             redisClient=redisClient,
                                                                                             logger=current_app.logger))
         future.result()
+        current_app.logger.info(f"Storing {currentUserId} {swipeInfo} on {swipedUserId}")
         return jsonify({'status': 200})
     except Exception as e:
         current_app.logger.exception(
@@ -80,8 +81,10 @@ def unmatch():
     try:
         current_user_id = request.get_json().get('current_user_id')
         other_user_id = request.get_json().get('other_user_id')
-        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, other_user_id=other_user_id,
-                                                     redis_client=redisClient))
+        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
+                                                        other_user_id=other_user_id,
+                                                     redisClient=redisClient,
+                                                     logger=current_app.logger))
         future.result()
         current_app.logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
         return jsonify({'status': 200})

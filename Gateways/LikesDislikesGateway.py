@@ -3,8 +3,11 @@ from google.cloud import firestore
 import asyncio
 import time
 import json
+
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.FirestoreConf import async_db, db
+from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_check_match_between_users
+from Gateways.LikesDislikesGatewayEXT import LikesDislikes_fetch_userdata_from_firebase_or_redis
 
 '''
 ################################################
@@ -19,23 +22,34 @@ The data stored with key is a list of ProfileIds who have liked, disliked or sup
 
 # Store likesdislikes data in firestore: We store this swipe at multiple places which will allows easy logic building
 async def LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=None, swipedUserId=None, swipeStatusBetweenUsers=None, async_db=None, redisClient=None, logger=None):
+    '''
+    Store like in Given for user
+    Store like in Receiver for profile receiving the swipe 
+    Check for a match & if match write to firestore 
+        :param currentUserId
+        :param swipedUserId
+        :param swipeStatusBetweenUsers
+    '''
     try:
-        # Set the update flag for MatchingEngine
-        task1 = asyncio.create_task(LikesDislikes_async_store_likesdislikes_updated(currentUserId=currentUserId, async_db=async_db, logger=logger))
         # Store given swipe task
-        task2 = asyncio.create_task(LikesDislikes_async_store_swipe_task(firstUserId=currentUserId, 
+        task1 = asyncio.create_task(LikesDislikes_async_store_swipe_task(firstUserId=currentUserId, 
                                                                         secondUserId=swipedUserId,
                                                                         collectionNameChild="Given", 
                                                                         swipeStatusBetweenUsers=swipeStatusBetweenUsers,
                                                                         async_db=async_db, redisClient=redisClient, logger=logger))
         # Store recevied swipe task
-        task3 = asyncio.create_task(LikesDislikes_async_store_swipe_task(firstUserId=swipedUserId , 
+        task2 = asyncio.create_task(LikesDislikes_async_store_swipe_task(firstUserId=swipedUserId , 
                                                                         secondUserId=currentUserId,
                                                                         collectionNameChild="Received", 
                                                                         swipeStatusBetweenUsers=swipeStatusBetweenUsers,
                                                                         async_db=async_db, redisClient=redisClient, logger=logger))
-                                                                    
-        return asyncio.gather(*[task1, task2, task3])
+    
+        task3 = asyncio.create_task(MatchUnmatch_check_match_between_users(currentUserId=currentUserId,
+                                                                        swipedUserId=swipedUserId,
+                                                                        currentUserSwipe=swipeStatusBetweenUsers,
+                                                                        redisClient=redisClient, 
+                                                                        logger=logger))
+        return asyncio.gather(*[task1, task2, task3])                                                            
     except Exception as e:
         logger.error(f"Failed to store the async likesdislikes swipe in firestore/redis")
         logger.exception(e)
@@ -60,99 +74,6 @@ async def LikesDislikes_async_store_swipe_task(firstUserId=None, secondUserId=No
         logger.exception(e)
         return False
 
-# Set the update flag for MatchingEngine
-async def LikesDislikes_async_store_likesdislikes_updated(currentUserId=None, async_db=None, logger=None):
-    '''
-    IMPT: 
-    Sets the wasUpdated field to True in firestore only under the Profile collection
-    There is a firestore listener on wasUpdated which is used by Matching Algorithm to process matches
-    '''
-    await async_db.collection('LikesDislikes').document(currentUserId).set({"wasUpdated": True})
-
-
-async def LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=None, collectionNameChild=None, swipeStatusBetweenUsers=None,redisClient=None, logger=None):
-    '''
-    LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}:{}
-    Function is called from appGet to fetch Likesdislikes for a user
-    Function returns list of profileIds under Given, Match, Received, Unmatch either from cache or firebase
-    Function is also responsible for loading likesdislikes under a category for user
-    collectionNameChild: Given, Match, Received, Unmatch
-
-    First check if the LikesDislikes:{UserId}:Given already exists in the cache
-    If exist send it back, since LikesDislikes is a write through cache, it's the most updated data
-    If doesn't exist fetch data from firestore and save the data to cache
-    '''
-    try:
-        redisBaseKey = f"LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}"
-        # Check if Likesdislikes for profile already exist in cache
-        if redisClient.scard(redisBaseKey) > 0:
-            logger.info(f"Fetching LikesDislikes for {redisBaseKey} from redis")
-            profileIds = await LikesDislikes_fetch_data_from_redis(userId=userId, 
-                                                            collectioNameChild=collectionNameChild, 
-                                                            swipeStatusBetweenUsers=swipeStatusBetweenUsers,
-                                                            redisClient=redisClient, 
-                                                            logger=logger)
-            return profileIds
-        else:
-            # If not fetch data from firestore & save it in cache
-            logger.info(f"Fetching LikesDislikes for {redisBaseKey} from firestore")
-            docs = async_db.collection("LikesDislikes").document(userId).collection(collectionNameChild). \
-                where(u'swipe', u'==', swipeStatusBetweenUsers).order_by(u'timestamp', direction=firestore.Query.DESCENDING)
-            profileIds = await LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=docs, userId=userId,
-                                                                    collectionNameChild=collectionNameChild,
-                                                                    redisClient=redisClient, logger=logger)
-            return profileIds
-    except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{collectionNameChild} Failure to fetch likes dislikes data from firestore/cache")
-        logger.exception(e)
-        return []
-
-
-
-async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=None, collectionNameChild=None, redisClient=None, logger=None):
-    '''
-    LikesDislikes:{userId}:{collectionNameChild}:{swipeStatusBetweenUsers}:{}
-    Store likesdislikes to redis
-    LikedDislikes Redis Key is a key which store list of ProfileIds
-    Accepts firestore stream object of LikesDislikes and save it to cache
-    Once you fetch the LikesDislikes for user from firestore, call this function to save data in redis
-    '''
-    try:
-        redisBaseKey = f"LikesDislikes:{userId}:{collectionNameChild}"
-        profileIds = []
-        async for doc in docs.stream():
-            profileId = doc.id
-            profileIds.append(profileId)
-            dictDoc = doc.to_dict()
-            # Fetch if the Other User received a Like, SuperLike or Dislike inside a Given, Received collection
-            swipeStatusBetweenUsers = dictDoc["swipe"] if "swipe" in dictDoc else collectionNameChild
-            completeRedisKey = f"{redisBaseKey}:{swipeStatusBetweenUsers}"
-            # Push multiple values through the HEAD of the list
-            redisClient.sadd(completeRedisKey,profileId)
-            logger.info(f"{profileId} was pushed to stack {completeRedisKey}")
-        return profileIds
-    except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{collectionNameChild} Failure to store data to cache")
-        logger.exception(e)
-        return []
-
-
-async def LikesDislikes_fetch_data_from_redis(userId=None, collectioNameChild=None, swipeStatusBetweenUsers=None, redisClient=None, logger=None):
-    '''
-    Pass in the User ID and the parameters you want LikesDislikes to filter on
-    Returns a list of Profile Ids for that user under a category 
-    '''
-    try:
-        redisBaseKey = f"LikesDislikes:{userId}:{collectioNameChild}:{swipeStatusBetweenUsers}"
-        # Redis function 'smembers' will give you the length of set inside redis key
-        profileIds = list(redisClient.smembers(redisBaseKey))
-        logger.info(f"Fetched {len(profileIds)} from cache:{redisBaseKey}")
-        return profileIds
-    except Exception as e:
-        logger.error(f"Unable to fetch likesdislikes data from cache {redisBaseKey}")
-        logger.exception(e)
-        return []
-
 
 async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, collectionNameChild=None, redisClient=None, logger=None):
     '''
@@ -160,7 +81,7 @@ async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, collectionN
     '''
     try:
         idsAlreadySeenByUser = []
-        asyncGetProfiles = await asyncio.gather(*[LikesDislikes_fetch_Userdata_from_firebase_or_redis(userId=userId, 
+        asyncGetProfiles = await asyncio.gather(*[LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=userId, 
                                                             collectionNameChild=collectionNameChild, 
                                                             swipeStatusBetweenUsers=swipeInfo,
                                                             redisClient=redisClient, 
@@ -172,6 +93,7 @@ async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, collectionN
         logger.error(f"Unable to fetch profiles already seen by user LikesDislikes:{userId}:{collectionNameChild}")
         logger.exception(e)
         return []
+
 
 # Function not in use
 # # Unmatch from a user
