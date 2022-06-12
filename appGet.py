@@ -79,26 +79,27 @@ def get_likes_dislikes_for_user_route():
     """
     try:
         currentUserId = request.get_json().get('currentUserId')
-        collectionNameChild = request.get_json().get('collectionNameChild')
+        childCollectionName = request.get_json().get('childCollectionName')
         matchFor = request.get_json().get('matchFor')
         # Get profile ids for given filter in likesdislikes
         ids_list = run_coroutine(LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=currentUserId,
-                                                                     collectionNameChild=collectionNameChild,
-                                                                     swipeStatusBetweenUsers=matchFor,
-                                                                    redisClient=redisClient, logger=current_app.logger))
+                                                                    childCollectionName=childCollectionName,
+                                                                    swipeStatusBetweenUsers=matchFor,
+                                                                    redisClient=redisClient, 
+                                                                    logger=current_app.logger))
         ids_list = ids_list.result()         
         
         # Get profile data for ids                                    
         profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
                                                                  logger=current_app.logger, async_db=async_db))
         profiles_array_future = profiles_array_future.result()
-        current_app.logger.info(f"Fetched for {currentUserId} {collectionNameChild} {matchFor}: {len(profiles_array_future)}")
+        current_app.logger.info(f"Fetched for {currentUserId} {childCollectionName} {matchFor}: {len(profiles_array_future)}")
         # current_app.logger.info(json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str))
         return json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str)
     except Exception as e:
         current_app.logger.error(f"Failed to get the Likes Dislikes for user from gateway")
         current_app.logger.exception(e)
-        return flask.abort(401, f'Unable to get likes dislikes for users {currentUserId} {collectionNameChild} {matchFor}')
+        return flask.abort(401, f'Unable to get likes dislikes for users {currentUserId} {childCollectionName} {matchFor}')
 
 
 # Profiles already seen by current_user -> list of profile ids
@@ -110,7 +111,7 @@ def get_profiles_already_seen_by_user_route():
     try:
         userId = request.get_json().get('currentUserId')
         idsAlreadySeenByUser = run_coroutine(LikesDislikes_get_profiles_already_seen_by_id(userId=userId, 
-                                                                            collectionNameChild="Given", 
+                                                                            childCollectionName="Given", 
                                                                             redisClient=redisClient, 
                                                                             logger=current_app.logger)) 
         idsAlreadySeenByUser = idsAlreadySeenByUser.result()                                                    

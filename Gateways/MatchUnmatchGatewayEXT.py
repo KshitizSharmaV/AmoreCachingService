@@ -28,13 +28,13 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
             
             # Fetch list of Given Likes by receiver
             likesGivenBySwipedUser = await LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=swipedUserId, 
-                                                        collectionNameChild="Given", 
+                                                        childCollectionName="Given", 
                                                         swipeStatusBetweenUsers="Likes",
                                                         redisClient=redisClient, 
                                                         logger=logger)
             # Fetch list of Given Superlikes  by receiver
             superlikesGivenBySwipedUser = await LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=swipedUserId, 
-                                                        collectionNameChild="Given", 
+                                                        childCollectionName="Given", 
                                                         swipeStatusBetweenUsers="Superlikes",
                                                         redisClient=redisClient, 
                                                         logger=logger)  
