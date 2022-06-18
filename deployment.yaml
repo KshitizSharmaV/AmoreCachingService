@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: caching
-          image: caching-api
+          image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/caching-api:latest
           imagePullPolicy: Never
           ports:
             - containerPort: 5050

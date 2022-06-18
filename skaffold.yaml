@@ -4,7 +4,7 @@ metadata:
   name: amore_caching
 build: 	
   artifacts: 
-    - image: caching-api 
+    - image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/caching-api:tag1 
       context: .
       docker:
         dockerfile: "Dockerfile"
