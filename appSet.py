@@ -97,15 +97,21 @@ def unmatch():
 def rewind_single_swipe():
     try:
         current_user_id = request.get_json().get('currentUserID')
-        swipe_info = request.get_json().get('swipeInfo')
+        swipeStatusBetweenUsers = request.get_json().get('swipeInfo')
         swiped_user_id = request.get_json().get('swipedUserID')
-        future = run_coroutine(Rewind_task_function(current_user_id=current_user_id, swiped_user_id=swiped_user_id,
-                                                    redis_client=redisClient, logger=current_app.logger))
-        future.result()
-        current_app.logger.info(f"Successfully rewinded {swipe_info} by {current_user_id}")
+        if current_user_id and swipeStatusBetweenUsers and swiped_user_id:
+            future = run_coroutine(Rewind_task_function(current_user_id=current_user_id, 
+                                                        swiped_user_id=swiped_user_id,
+                                                        swipeStatusBetweenUsers=swipeStatusBetweenUsers,
+                                                        redisClient=redisClient, 
+                                                        logger=current_app.logger))
+            future.result()
+            current_app.logger.info(f"Successfully rewinded {swipeStatusBetweenUsers} by {current_user_id}")
+        else:
+            current_app.logger.warning(f"None received {current_user_id} {swipeStatusBetweenUsers} {swiped_user_id}")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to rewind {swipe_info} by {current_user_id}")
+        current_app.logger.exception(f"Unable to rewind {swipeStatusBetweenUsers} by {current_user_id}")
         current_app.logger.exception(e)
 
 
@@ -152,9 +158,11 @@ def report_profile():
         description_given = request.get_json().get('descriptionGiven')
         status = Report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
                                      reason_given=reason_given, description_given=description_given,
-                                     redis_client=redisClient)
-        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, other_user_id=reported_profile_id,
-                                                     redis_client=redisClient))
+                                     redisClient=redisClient)
+        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
+                                                    other_user_id=reported_profile_id,
+                                                     redisClient=redisClient,
+                                                     logger=current_app.logger))
         future.result()
         current_app.logger.info(f"Successfully reported profile {reported_profile_id}")
         return jsonify({'status': 200})
