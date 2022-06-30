@@ -5,11 +5,11 @@ from itertools import chain
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
-from Gateways.ProfilesGateway import *
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
 from Gateways.LikesDislikesGateway import LikesDislikes_fetch_userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
+from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis
 
 import logging
 import traceback
@@ -45,21 +45,18 @@ def fetch_geo_recommendations():
     :return: List of recommended profiles(Dicts/JSONs)
     """
     try:
+        try_creating_profile_index_for_redis()
         userId = request.get_json().get('userId')
         profilesCountLeftInDeck = request.get_json().get('CountLeftInDeck')
         filterData = request.get_json().get('filterData')
-        profilesList = GeoService_get_recommended_profiles_for_user(userId=userId,
+        current_user_profile, profiles_array = GeoService_get_recommended_profiles_for_user(userId=userId,
                                                                     filterData=filterData,
                                                                     redisClient=redisClient,
                                                                     logger=current_app.logger)
-        profilesList = profilesList[1] if len(profilesList) > 0 else []
-        profiles_array = list(map(redisClient.mget, profilesList))
         # Check if there are profiles in the array
         if len(profiles_array) > 0:
-            profiles_array = [json.loads(profile_string[0]) for profile_string in profiles_array]
-            current_app.logger.info(f"{userId}: Successfully fetched {len(profilesList)} recommendations")
+            current_app.logger.info(f"{userId}: Successfully fetched {len(profiles_array)} recommendations")
         else:
-            profiles_array = []
             current_app.logger.warning(f"{userId}: No profile fetched for user")    
         return jsonify(profiles_array)
     except Exception as e:
