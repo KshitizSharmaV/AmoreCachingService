@@ -151,7 +151,7 @@ class QueryBuilder():
     geohash5: str = '*'
     geohash: str = '*'
     genderPreference: str = '*'
-    religionPreference: str = '*'
+    # religionPreference: str = '*'
     minAgePreference: int = 18
     maxAgePreference: int = 18
     age_range: list = field(init=False)
@@ -194,11 +194,11 @@ class QueryBuilder():
 
 
 def test_query_builder(**kwargs):
-    print(QueryBuilder(**kwargs).query_builder())
+    print(QueryBuilder.from_dict(kwargs).query_builder())
 
 
 if __name__ == "__main__":
     """
     Test Query Builder
     """
-    test_query_builder(id="SaMpLePrOfIlEiD", geohash1="7", geohash2="75")
+    test_query_builder(id="SaMpLePrOfIlEiD", geohash1="7", geohash2="75", religionPreference="abc")
