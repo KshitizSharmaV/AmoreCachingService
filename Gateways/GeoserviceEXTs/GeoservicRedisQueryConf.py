@@ -4,7 +4,6 @@ from redis.commands.search.indexDefinition import IndexDefinition
 from redis.commands.search.query import Query
 from ProjectConf.ReddisConf import redisClient
 
-
 # Options for index creation
 index_def = IndexDefinition(prefix=["profile:"])
 
@@ -29,3 +28,11 @@ def try_creating_profile_index_for_redis():
         print("Index for profiles created")
     except ResponseError:
         print("Index already exists")
+
+
+def check_redis_index_exists(index: str) -> bool:
+    try:
+        redisClient.ft(index_name=index).info()
+        return True
+    except ResponseError:
+        return False
