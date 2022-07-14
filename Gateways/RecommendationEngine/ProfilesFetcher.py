@@ -1,15 +1,16 @@
 import sys
-import os.path
-sys.path.extend(
-    [os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)),
-     "/Users/piyushgarg/work/Amore_Repos/AmoreCachingService"])
+import os
+
+sys.path.extend([os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)), os.getcwd()])
+
 import asyncio
 import time
 import traceback
 from typing import Set
 from redis import Redis
 from logging import Logger
-
+from pprint import pprint
+from functools import lru_cache
 from dataclasses import asdict
 from Utilities.DictOps import ignore_none
 from ProjectConf.FirestoreConf import db
@@ -84,16 +85,54 @@ class ProfilesFetcher:
 
     def add_geohash_filter_for_radius_for_query(self):
         try:
+            _start = time.time()
             for geohash in self.geohash_keys:
                 self.current_user_filters[geohash] = '*'
             geohash_level = Geoservice_calculate_geo_hash_from_radius(
                 radius=self.current_user_filters.get('radiusDistance'))
             self.current_user_filters[geohash_level] = self.current_user_data.get(geohash_level)
+            # print(f"add_geohash_filter_for_radius_for_query() : {time.time() - _start} \n")
         except Exception as e:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())
 
-    def fetch_filtered_profiles_for_user(self, profile_ids_already_fetched: list = None) -> [dict]:
+    @lru_cache(maxsize=32)
+    def build_exclusion_query(self, profile_ids_already_fetched: tuple = None):
+        try:
+            if profile_ids_already_fetched:
+                profile_ids_already_fetched = list(profile_ids_already_fetched)
+                profile_ids_already_fetched.extend(self.profiles_already_seen)
+                exclusion_query = f"-@id:{'|'.join(profile_ids_already_fetched)}"
+            elif self.profiles_already_seen:
+                exclusion_query = f"-@id:{'|'.join(self.profiles_already_seen)}"
+            else:
+                exclusion_query = ""
+            return exclusion_query
+        except Exception as e:
+            self.logger.exception(e)
+            self.logger.error(traceback.format_exc())
+            print(traceback.format_exc())
+
+    @lru_cache(maxsize=32)
+    def build_search_query(self, exclusion_query: str):
+        try:
+            query = QueryBuilder.from_dict(self.current_user_filters).query_builder()
+            query = " ".join([query, exclusion_query] if exclusion_query else [query])
+            return query
+        except Exception as e:
+            self.logger.exception(e)
+            self.logger.error(traceback.format_exc())
+            print(traceback.format_exc())
+
+    def query_redis_for_profiles(self, query_string: str):
+        try:
+            return self.redis_client.ft("idx:profile").search(Query(query_string=query_string).paging(0, 10))
+        except Exception as e:
+            self.logger.exception(e)
+            self.logger.error(traceback.format_exc())
+            print(traceback.format_exc())
+
+    def fetch_filtered_profiles_for_user(self, profile_ids_already_fetched: tuple = None) -> [dict]:
         """
         Use current user filters to build query for redis
         Recursively fetch profiles until either:
@@ -103,20 +142,15 @@ class ProfilesFetcher:
             - Eliminate profiles already seen or already in deck
         """
         try:
-            query = QueryBuilder.from_dict(self.current_user_filters).query_builder()
-            if profile_ids_already_fetched:
-                profile_ids_already_fetched.extend(self.profiles_already_seen)
-                exclusion_query = f"-@id:{'|'.join(profile_ids_already_fetched)}"
-            elif self.profiles_already_seen:
-                exclusion_query = f"-@id:{'|'.join(self.profiles_already_seen)}"
-            else:
-                exclusion_query = ""
-            query = " ".join([query, exclusion_query] if exclusion_query else [query])
-            result_profiles = self.redis_client.ft("idx:profile").search(Query(query_string=query).paging(0, 10))
-            return [asdict(Profile.decode_data_from_redis(doc.__dict__)) for doc in result_profiles.docs]
+            exclusion_query = self.build_exclusion_query(profile_ids_already_fetched=profile_ids_already_fetched)
+            query = self.build_search_query(exclusion_query=exclusion_query)
+            result_profiles = self.query_redis_for_profiles(query_string=query)
+            profiles_list = [Profile.decode_data_from_redis(doc.__dict__).to_dict() for doc in result_profiles.docs]
+            return profiles_list
         except Exception as e:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())
+            print(traceback.format_exc())
 
     def get_current_geohash_level(self):
         # Get the current geohash level
@@ -131,6 +165,12 @@ class ProfilesFetcher:
             self.logger.error(traceback.format_exc())
 
     def reduce_geohash_accuracy(self, geohash: str):
+        """
+        geohash3 --> geohash2
+        Reduces geohash level of accuracy.
+        :param geohash: Current geohash level
+        :return: If geohash level = 1, returns None, else, returns reduced geohash level string
+        """
         try:
             if geohash[-1] == '1':
                 return None
@@ -169,7 +209,7 @@ class ProfilesFetcher:
                 self.reduce_current_geohash_level_in_filters(current_geohash_level=current_geohash_level)
 
                 # Fetch new sets of profiles using new filters, radius
-                profile_ids_already_fetched = [doc['id'].replace('profile:', '') for doc in final_fetched_profiles]
+                profile_ids_already_fetched = tuple(doc['id'].replace('profile:', '') for doc in final_fetched_profiles)
                 final_fetched_profiles = self.fetch_filtered_profiles_for_user(
                     profile_ids_already_fetched=profile_ids_already_fetched)
             return final_fetched_profiles
@@ -182,18 +222,10 @@ if __name__ == "__main__":
     start = time.time()
     if not check_redis_index_exists(index="idx:profile"):
         try_creating_profile_index_for_redis()
-    print(f"Index checking time: {time.time() - start}")
-
-    checkpoint1 = time.time()
     profiles_fetcher = ProfilesFetcher(current_user_id="WbZZuRPhxRf6KL1GFHcNWL2Ydzk1",
-                                       current_user_filters={"radiusDistance": 1000}, profiles_already_in_deck=[],
+                                       current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[],
                                        redis_client=redisClient, logger=logger1)
-    print(f"Class creation time: {time.time() - checkpoint1}")
-
-    checkpoint2 = time.time()
     profiles = profiles_fetcher.get_final_fetched_profiles()
-    print(f"Recommendation fetching time: {time.time() - checkpoint2}")
-
-    checkpoint3 = time.time()
-    # print(profiles)
+    print(len(profiles))
+    # pprint(profiles)
     print(f"Total time: {time.time() - start}")
