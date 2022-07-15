@@ -132,6 +132,16 @@ class ProfilesFetcher:
             self.logger.error(traceback.format_exc())
             print(traceback.format_exc())
 
+    def get_dict_for_redis_query_result(self, result_profile):
+        try:
+            profile = Profile.decode_data_from_redis(result_profile.__dict__).to_dict()
+            profile['id'] = profile['id'].replace('profile:', '')
+            return profile
+        except Exception as e:
+            self.logger.exception(e)
+            self.logger.exception(traceback.format_exc())
+            print(traceback.format_exc())
+
     def fetch_filtered_profiles_for_user(self, profile_ids_already_fetched: tuple = None) -> [dict]:
         """
         Use current user filters to build query for redis
@@ -145,7 +155,7 @@ class ProfilesFetcher:
             exclusion_query = self.build_exclusion_query(profile_ids_already_fetched=profile_ids_already_fetched)
             query = self.build_search_query(exclusion_query=exclusion_query)
             result_profiles = self.query_redis_for_profiles(query_string=query)
-            profiles_list = [Profile.decode_data_from_redis(doc.__dict__).to_dict() for doc in result_profiles.docs]
+            profiles_list = [self.get_dict_for_redis_query_result(doc) for doc in result_profiles.docs]
             return profiles_list
         except Exception as e:
             self.logger.exception(e)
@@ -209,7 +219,7 @@ class ProfilesFetcher:
                 self.reduce_current_geohash_level_in_filters(current_geohash_level=current_geohash_level)
 
                 # Fetch new sets of profiles using new filters, radius
-                profile_ids_already_fetched = tuple(doc['id'].replace('profile:', '') for doc in final_fetched_profiles)
+                profile_ids_already_fetched = tuple(doc['id'] for doc in final_fetched_profiles)
                 final_fetched_profiles = self.fetch_filtered_profiles_for_user(
                     profile_ids_already_fetched=profile_ids_already_fetched)
             return final_fetched_profiles

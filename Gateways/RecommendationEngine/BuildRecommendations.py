@@ -4,6 +4,10 @@ from redis import Redis
 from logging import Logger
 from Gateways.RecommendationEngine.ProfilesGrader import ProfilesGrader
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
+# IMPORTS FOR TEST
+from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
+from ProjectConf.ReddisConf import redisClient
+from ProjectConf.LoggerConf import logger as logger1
 
 
 class RecommendationSystem:
@@ -57,10 +61,13 @@ class RecommendationSystem:
         - Get the normalised data frame of other users' data
         """
         try:
-            self.profile_grader = ProfilesGrader(current_user_data=self.current_user_data,
-                                                 other_users_data=self.other_users_data,
-                                                 redis_client=self.redis_client, logger=self.logger)
-            self.normalised_other_users_df = asyncio.run(self.profile_grader.get_normalised_graded_profiles_df())
+            if self.other_users_data:
+                self.profile_grader = ProfilesGrader(current_user_data=self.current_user_data,
+                                                     other_users_data=self.other_users_data,
+                                                     redis_client=self.redis_client, logger=self.logger)
+                self.normalised_other_users_df = asyncio.run(self.profile_grader.get_normalised_graded_profiles_df())
+            else:
+                return []
         except Exception as e:
             self.logger.exception(e)
 
@@ -70,11 +77,25 @@ class RecommendationSystem:
             - Other users data fetched recursively with elimination filters on
         - Grade/Rate the other users profiles fetched in previous step
         - Get the normalised data frame of other users' data
-        - Take the top 50 before further processing
-        - Use religion, career, community, education and country preferences to rank the top 50 profiles
+        - Use religion, education and country preferences to rank the top 50 profiles
         - Return the top 50 profiles in that order
         """
         self.fetch_current_and_other_users_data()
         self.grade_other_users_profiles()
-
+        '''
+        Available:
+        current_user_data: dict
+        other_user_data: list(dict)
+        normalised_df: Dataframe
+        '''
+        print(self.current_user_data['id'])
+        print(len(self.other_users_data))
+        print(self.normalised_other_users_df)
         pass
+
+
+if __name__ == "__main__":
+    recommendation_obj = RecommendationSystem(current_user_id="nVA4bAkUWubnEFGTVdO4IVUDDW02",
+                                              current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[],
+                                              redis_client=redisClient, logger=logger1)
+    recommendation_obj.build_recommendations()
