@@ -49,7 +49,7 @@ class ProfilesGrader:
     #     "matchingScoreWeighted": 0.30
     # }
 
-    def __init__(self, current_user_data: dict, other_users_data: [dict], redis_client: Redis, logger):
+    def __init__(self, current_user_data: dict, other_users_data: dict, redis_client: Redis, logger):
         self.current_user_data = current_user_data
         self.other_users_data = other_users_data
         self.redis_client = redis_client
@@ -238,7 +238,7 @@ class ProfilesGrader:
         try:
             all_profile_scores_df = await asyncio.gather(
                 *[self.calculate_all_scores_for_profile(user_profile=user_profile) for user_profile in
-                  self.other_users_data])
+                  self.other_users_data.values()])
             all_profile_scores_df = pd.DataFrame(all_profile_scores_df)
             all_profile_scores_df = all_profile_scores_df.set_index('userId')
             # normalize data
@@ -258,13 +258,13 @@ class ProfilesGrader:
 
             ids = normalized_all_profile_scores_df.index.tolist()
 
-            matches_unmatches_dicts = await asyncio.gather(
-                *[self.get_no_of_matches_and_unmatches_for_user(user_id=id) for id in ids])
-            matches_unmatches_dfs = pd.DataFrame(matches_unmatches_dicts)
-            matches_unmatches_dfs = matches_unmatches_dfs.set_index('profileId')
+            # matches_unmatches_dicts = await asyncio.gather(
+            #     *[self.get_no_of_matches_and_unmatches_for_user(user_id=id) for id in ids])
+            # matches_unmatches_dfs = pd.DataFrame(matches_unmatches_dicts)
+            # matches_unmatches_dfs = matches_unmatches_dfs.set_index('profileId')
+            # normalized_all_profile_scores_df = pd.merge(normalized_all_profile_scores_df, matches_unmatches_dfs,
+            #                                             left_index=True, right_index=True)
 
-            normalized_all_profile_scores_df = pd.merge(normalized_all_profile_scores_df, matches_unmatches_dfs,
-                                                        left_index=True, right_index=True)
             return normalized_all_profile_scores_df
         except Exception as e:
             self.logger.error(f"Error occurred in Profile Grader")

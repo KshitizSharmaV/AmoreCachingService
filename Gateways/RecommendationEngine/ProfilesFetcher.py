@@ -96,15 +96,14 @@ class ProfilesFetcher:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())
 
-    @lru_cache(maxsize=32)
     def build_exclusion_query(self, profile_ids_already_fetched: tuple = None):
         try:
             if profile_ids_already_fetched:
                 profile_ids_already_fetched = list(profile_ids_already_fetched)
                 profile_ids_already_fetched.extend(self.profiles_already_seen)
-                exclusion_query = f"-@id:{'|'.join(profile_ids_already_fetched)}"
+                exclusion_query = f"(-@id:{'|'.join(profile_ids_already_fetched)})"
             elif self.profiles_already_seen:
-                exclusion_query = f"-@id:{'|'.join(self.profiles_already_seen)}"
+                exclusion_query = f"(-@id:{'|'.join(self.profiles_already_seen)})"
             else:
                 exclusion_query = ""
             return exclusion_query
@@ -113,7 +112,6 @@ class ProfilesFetcher:
             self.logger.error(traceback.format_exc())
             print(traceback.format_exc())
 
-    @lru_cache(maxsize=32)
     def build_search_query(self, exclusion_query: str):
         try:
             query = QueryBuilder.from_dict(self.current_user_filters).query_builder()
@@ -142,7 +140,7 @@ class ProfilesFetcher:
             self.logger.exception(traceback.format_exc())
             print(traceback.format_exc())
 
-    def fetch_filtered_profiles_for_user(self, profile_ids_already_fetched: tuple = None) -> [dict]:
+    def fetch_filtered_profiles_for_user(self, profile_ids_already_fetched: tuple = None) -> dict:
         """
         Use current user filters to build query for redis
         Recursively fetch profiles until either:
@@ -155,8 +153,9 @@ class ProfilesFetcher:
             exclusion_query = self.build_exclusion_query(profile_ids_already_fetched=profile_ids_already_fetched)
             query = self.build_search_query(exclusion_query=exclusion_query)
             result_profiles = self.query_redis_for_profiles(query_string=query)
-            profiles_list = [self.get_dict_for_redis_query_result(doc) for doc in result_profiles.docs]
-            return profiles_list
+            profiles_dict = {doc.id.replace('profile:', ''): self.get_dict_for_redis_query_result(doc) for doc in
+                             result_profiles.docs}
+            return profiles_dict
         except Exception as e:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())
@@ -203,7 +202,7 @@ class ProfilesFetcher:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())
 
-    def get_final_fetched_profiles(self) -> [dict]:
+    def get_final_fetched_profiles(self) -> dict:
         try:
             self.add_geohash_filter_for_radius_for_query()
             final_fetched_profiles = self.fetch_filtered_profiles_for_user()
@@ -219,9 +218,9 @@ class ProfilesFetcher:
                 self.reduce_current_geohash_level_in_filters(current_geohash_level=current_geohash_level)
 
                 # Fetch new sets of profiles using new filters, radius
-                profile_ids_already_fetched = tuple(doc['id'] for doc in final_fetched_profiles)
-                final_fetched_profiles = self.fetch_filtered_profiles_for_user(
-                    profile_ids_already_fetched=profile_ids_already_fetched)
+                profile_ids_already_fetched = tuple(final_fetched_profiles.keys())
+                final_fetched_profiles.update(
+                    self.fetch_filtered_profiles_for_user(profile_ids_already_fetched=profile_ids_already_fetched))
             return final_fetched_profiles
         except Exception as e:
             self.logger.exception(e)
@@ -233,7 +232,8 @@ if __name__ == "__main__":
     if not check_redis_index_exists(index="idx:profile"):
         try_creating_profile_index_for_redis()
     profiles_fetcher = ProfilesFetcher(current_user_id="WbZZuRPhxRf6KL1GFHcNWL2Ydzk1",
-                                       current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[],
+                                       current_user_filters={"radiusDistance": 50, "genderPreference": "Male"},
+                                       profiles_already_in_deck=[],
                                        redis_client=redisClient, logger=logger1)
     profiles = profiles_fetcher.get_final_fetched_profiles()
     print(len(profiles))

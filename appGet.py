@@ -9,7 +9,8 @@ from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_u
 from Gateways.LikesDislikesGateway import LikesDislikes_fetch_userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
-from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis
+from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis, check_redis_index_exists
+from Gateways.RecommendationEngine.BuildRecommendations import RecommendationSystem
 
 import logging
 import traceback
@@ -45,14 +46,20 @@ def fetch_geo_recommendations():
     :return: List of recommended profiles(Dicts/JSONs)
     """
     try:
-        try_creating_profile_index_for_redis()
+        if not check_redis_index_exists(index="idx:profile"):
+            try_creating_profile_index_for_redis()
         userId = request.get_json().get('userId')
-        profilesCountLeftInDeck = request.get_json().get('CountLeftInDeck')
+        profilesAlreadyInDeck = request.get_json().get('profilesAlreadyInDeck')
         filterData = request.get_json().get('filterData')
-        current_user_profile, profiles_array = GeoService_get_recommended_profiles_for_user(userId=userId,
-                                                                    filterData=filterData,
-                                                                    redisClient=redisClient,
-                                                                    logger=current_app.logger)
+        # current_user_profile, profiles_array = GeoService_get_recommended_profiles_for_user(userId=userId,
+        #                                                             filterData=filterData,
+        #                                                             redisClient=redisClient,
+        #                                                             logger=current_app.logger)
+        current_app.logger.warning(f"profilesAlreadyInDeck: {profilesAlreadyInDeck}")
+        recommendation_system = RecommendationSystem(current_user_id=userId, current_user_filters=filterData,
+                                                     profiles_already_in_deck=profilesAlreadyInDeck,
+                                                     redis_client=redisClient, logger=current_app.logger)
+        profiles_array = recommendation_system.build_recommendations()
         # Check if there are profiles in the array
         if len(profiles_array) > 0:
             current_app.logger.info(f"{userId}: Successfully fetched {len(profiles_array)} recommendations")

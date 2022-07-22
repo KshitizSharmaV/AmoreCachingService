@@ -15,8 +15,8 @@ schema = (
     TextField("geohash3", sortable=True),
     TextField("geohash4", sortable=True),
     TextField("geohash5", sortable=True),
-    TextField("genderPreference", sortable=True),
-    TextField("religionPreference", sortable=True),
+    TextField("genderIdentity", sortable=True),
+    TextField("religion", sortable=True),
     TextField("id", sortable=True),
     NumericField("age", sortable=True)
 )
@@ -36,3 +36,7 @@ def check_redis_index_exists(index: str) -> bool:
         return True
     except ResponseError:
         return False
+
+
+if __name__ == "__main__":
+    try_creating_profile_index_for_redis()

@@ -51,7 +51,7 @@ profile_type_hints = {
     'image1': ProfileImage, 'image2': ProfileImage, 'image3': ProfileImage, 'image4': ProfileImage,
     'image5': ProfileImage, 'image6': ProfileImage, 'doYouWorkOut': str, 'doYouDrink': str, 'doYouSmoke': str,
     'doYouWantBabies': str, 'profileCompletion': float, 'countryRaisedIn': str, 'wasProfileUpdated': bool,
-    'isProfileActive': bool
+    'isProfileActive': bool, 'userCreationDate': datetime
 }
 
 
@@ -63,7 +63,7 @@ class Profile():
                  'community', 'politics', 'location', 'geohash', 'geohash1', 'geohash2', 'geohash3', 'geohash4',
                  'geohash5', 'description', 'country', 'discoveryStatus', 'notificationsStatus', 'image1', 'image2',
                  'image3', 'image4', 'image5', 'image6', 'doYouWorkOut', 'doYouDrink', 'doYouSmoke', 'doYouWantBabies',
-                 'profileCompletion', 'countryRaisedIn', 'wasProfileUpdated', 'isProfileActive']
+                 'profileCompletion', 'countryRaisedIn', 'wasProfileUpdated', 'isProfileActive', 'userCreationDate']
     id: str
     firstName: str
     lastName: str
@@ -111,6 +111,7 @@ class Profile():
     countryRaisedIn: str
     wasProfileUpdated: bool
     isProfileActive: bool
+    userCreationDate: datetime
 
     def to_dict(self):
         ignore_elements = ['location', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6']
@@ -132,7 +133,7 @@ class Profile():
     def from_dict(cls, data):
         return cls(
             **{
-                key: (data[key] if val.default == val.empty else data.get(key, val.default))
+                key: (data.get(key) if val.default == val.empty else data.get(key, val.default))
                 for key, val in inspect.signature(cls).parameters.items()
             }
         )
@@ -148,7 +149,7 @@ class Profile():
         return flatten_dict_str(
             asdict(cls(
                 **{
-                    key: (data[key] if val.default == val.empty else data.get(key, val.default))
+                    key: (data.get(key) if val.default == val.empty else data.get(key, val.default))
                     for key, val in inspect.signature(cls).parameters.items()
                 }
             ))
@@ -202,8 +203,8 @@ class QueryBuilder():
     id: str = '*'
 
     def __post_init__(self):
-        self.minAgePreference = 18 if self.minAgePreference < 18 else self.minAgePreference
-        self.maxAgePreference = 18 if self.maxAgePreference < 18 else self.maxAgePreference
+        self.minAgePreference = 18 if int(self.minAgePreference) < 18 else int(self.minAgePreference)
+        self.maxAgePreference = 18 if int(self.maxAgePreference) < 18 else int(self.maxAgePreference)
         self.age_range = list(range(self.minAgePreference, self.maxAgePreference + 1))
 
     @classmethod
@@ -226,12 +227,15 @@ class QueryBuilder():
         query_list = []
         for field in fields(self):
             if field.name not in ignore_elems and instance_dict.get(field.name) != '*':
-                query_list.append(f"@{field.name}:{str(instance_dict.get(field.name))}")
+                if field.name == 'genderPreference':
+                    query_list.append(f"(@genderIdentity:{str(instance_dict.get(field.name))})")
+                else:
+                    query_list.append(f"(@{field.name}:{str(instance_dict.get(field.name))})")
         if self.age:
-            query_list.append(f"@age:{str(instance_dict.get('age'))}")
+            query_list.append(f"(@age:{str(instance_dict.get('age'))})")
         elif self.maxAgePreference != self.minAgePreference:
             query_list.append(
-                f"@age:[{str(instance_dict.get('minAgePreference'))} {str(instance_dict.get('maxAgePreference'))}]")
+                f"(@age:[{str(instance_dict.get('minAgePreference'))} {str(instance_dict.get('maxAgePreference'))}])")
         query = " ".join(query_list)
         return query
 

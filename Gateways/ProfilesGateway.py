@@ -91,7 +91,7 @@ async def ProfilesGateway_get_profile_by_ids(redisClient: Redis = None, profileI
         for profile_id in profileIdList:
             profile = Profile.decode_data_from_redis(redisClient.hgetall(f"profile:{profile_id}"))
             if profile.id:
-                all_profiles_data.append(asdict(profile, dict_factory=ignore_none))
+                all_profiles_data.append(profile.to_dict())
                 fetched_profiles_ids.add(profile_id)
         keys_not_in_cache = list(set(profileIdList).difference(fetched_profiles_ids)) \
             if len(fetched_profiles_ids) != len(profileIdList) else []

@@ -1,9 +1,12 @@
 import asyncio
+import traceback
+
 import pandas as pd
 from redis import Redis
 from logging import Logger
 from Gateways.RecommendationEngine.ProfilesGrader import ProfilesGrader
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
+from ProjectConf.AsyncioPlugin import run_coroutine
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.ReddisConf import redisClient
@@ -26,7 +29,7 @@ class RecommendationSystem:
     current_user_data: dict
     current_user_filters: dict
     profiles_already_in_deck: [str]
-    other_users_data: [dict]
+    other_users_data: dict
     redis_client: Redis
     logger: Logger
 
@@ -65,9 +68,10 @@ class RecommendationSystem:
                 self.profile_grader = ProfilesGrader(current_user_data=self.current_user_data,
                                                      other_users_data=self.other_users_data,
                                                      redis_client=self.redis_client, logger=self.logger)
-                self.normalised_other_users_df = asyncio.run(self.profile_grader.get_normalised_graded_profiles_df())
+                future = run_coroutine(self.profile_grader.get_normalised_graded_profiles_df())
+                self.normalised_other_users_df = future.result()
             else:
-                return []
+                self.normalised_other_users_df = pd.DataFrame()
         except Exception as e:
             self.logger.exception(e)
 
@@ -88,10 +92,12 @@ class RecommendationSystem:
         other_user_data: list(dict)
         normalised_df: Dataframe
         '''
-        print(self.current_user_data['id'])
-        print(len(self.other_users_data))
-        print(self.normalised_other_users_df)
-        pass
+        if not self.normalised_other_users_df.empty:
+            self.normalised_other_users_df.sort_values(by=['userRank'], inplace=True)
+            return [self.other_users_data.get(user_id) for user_id in self.normalised_other_users_df.index.tolist() if
+                    self.other_users_data.get(user_id)]
+        else:
+            return []
 
 
 if __name__ == "__main__":
