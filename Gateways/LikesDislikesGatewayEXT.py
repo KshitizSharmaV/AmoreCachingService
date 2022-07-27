@@ -1,6 +1,7 @@
 from ProjectConf.FirestoreConf import async_db
 from google.cloud import firestore
 import time
+from redis import Redis
 
 async def LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None, swipeStatusBetweenUsers=None, redisClient=None, logger=None):
     '''
@@ -108,19 +109,24 @@ async def LikesDislikes_delete_record_from_redis(userId=None, idToBeDeleted=None
         return False
 
 
-
 # Store data in likesdislikes collection of the user who have the swipe
 # done for ease of read & build easy logics around different business use cases
-async def LikesDislikes_async_store_swipe_task(firstUserId=None, secondUserId=None, childCollectionName=None, swipeStatusBetweenUsers=None, 
-                                                redisClient=None, logger=None):
+async def LikesDislikes_async_store_swipe_task(firstUserId=None, secondUserId=None, childCollectionName=None,
+                                               swipeStatusBetweenUsers=None, upgradeLikeToSuperlike=None,
+                                               redisClient: Redis = None, logger=None):
     '''
     Store the given swipe in firestore and redis
     '''
     try:
         redisBaseKey = f"LikesDislikes:{firstUserId}:{childCollectionName}:{swipeStatusBetweenUsers}"
         storeData = {"swipe": swipeStatusBetweenUsers, "timestamp": time.time(), 'matchVerified': False}
-        await async_db.collection('LikesDislikes').document(firstUserId).collection(childCollectionName).document(secondUserId).set(storeData)
-        redisClient.sadd(redisBaseKey,secondUserId)
+        await async_db.collection('LikesDislikes').document(firstUserId).collection(childCollectionName).document(
+            secondUserId).set(storeData)
+        if upgradeLikeToSuperlike:
+            redisClient.srem(f"LikesDislikes:{firstUserId}:{childCollectionName}:Likes", secondUserId)
+            logger.info(f"Removed Like from {firstUserId} for {secondUserId}")
+        redisClient.sadd(redisBaseKey, secondUserId)
+        logger.info(f"Added {swipeStatusBetweenUsers} from {firstUserId} for {secondUserId}")
         logger.info(f"{redisBaseKey} successfully stored {secondUserId} in firestore/redis")
         return True
     except Exception as e:

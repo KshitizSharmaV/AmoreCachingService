@@ -60,9 +60,11 @@ def store_likes_dislikes_superlikes():
         currentUserId = request.get_json().get('currentUserId')
         swipeInfo = request.get_json().get('swipeInfo')
         swipedUserId = request.get_json().get('swipedUserId')
+        upgradeLikeToSuperlike = request.get_json().get('upgradeLikeToSuperlike')
         future = run_coroutine(LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId,
                                                                                             swipedUserId=swipedUserId,
                                                                                             swipeStatusBetweenUsers=swipeInfo,
+                                                                                            upgradeLikeToSuperlike=upgradeLikeToSuperlike,
                                                                                             async_db=async_db,
                                                                                             redisClient=redisClient,
                                                                                             logger=current_app.logger))
