@@ -9,10 +9,11 @@ from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
 from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
-from Gateways.RewindGateway import Rewind_task_function
+from Gateways.RewindGateway import Rewind_task_function, get_last_given_swipe_from_firestore
 from Gateways.ReportProfile import Report_profile_task
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
+from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 import logging
 import asyncio
 import traceback
@@ -97,23 +98,32 @@ def unmatch():
 
 @current_app.route('/rewindsingleswipegate', methods=['POST'])
 def rewind_single_swipe():
+    """
+    Rewind a single swipe:
+        - get the last given swipe according to timestamp
+        - rewind tasks
+        - return the profile back to client
+    """
     try:
         current_user_id = request.get_json().get('currentUserID')
-        swipeStatusBetweenUsers = request.get_json().get('swipeInfo')
-        swiped_user_id = request.get_json().get('swipedUserID')
-        if current_user_id and swipeStatusBetweenUsers and swiped_user_id:
+        if current_user_id:
+            swiped_user_id, swipeStatusBetweenUsers = get_last_given_swipe_from_firestore(current_user_id=current_user_id)
             future = run_coroutine(Rewind_task_function(current_user_id=current_user_id, 
                                                         swiped_user_id=swiped_user_id,
                                                         swipeStatusBetweenUsers=swipeStatusBetweenUsers,
                                                         redisClient=redisClient, 
                                                         logger=current_app.logger))
             future.result()
+            allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=[swiped_user_id], logger=current_app.logger, async_db=async_db))
+            allProfilesData = allProfilesData.result()
+            rewinded_user_info = allProfilesData[0]
             current_app.logger.info(f"Successfully rewinded {swipeStatusBetweenUsers} by {current_user_id}")
+            return jsonify(rewinded_user_info)
         else:
-            current_app.logger.warning(f"None received {current_user_id} {swipeStatusBetweenUsers} {swiped_user_id}")
+            current_app.logger.warning(f"Invalid current User ID")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to rewind {swipeStatusBetweenUsers} by {current_user_id}")
+        current_app.logger.exception(f"Unable to rewind swipe by {current_user_id}")
         current_app.logger.exception(e)
 
 

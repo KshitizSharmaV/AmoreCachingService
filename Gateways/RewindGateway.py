@@ -3,6 +3,7 @@ import json
 import time
 from redis.client import Redis
 from ProjectConf.FirestoreConf import async_db, db
+from google.cloud import firestore
 from Gateways.LikesDislikesGatewayEXT import LikesDislikes_delete_record_from_redis
 from logging import Logger
 
@@ -11,6 +12,7 @@ async def Rewind_task_function(current_user_id: str = None, swiped_user_id: str 
     Rewind a user's swipe
         - remove the given swipe from collection
         - remove the received swipe from collection
+        - return the profile back to client
     :param current_user_id: Current User's UID
     :param other_user_id: Other User's UID
     :return
@@ -75,7 +77,10 @@ async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id
         return False
     return
 
-
-
-
-
+def get_last_given_swipe_from_firestore(current_user_id):
+    last_swipe_doc = db.collection('LikesDislikes').document(current_user_id).collection('Given').order_by(u'timestamp', direction=firestore.Query.DESCENDING).limit(1)
+    last_swipe_doc = last_swipe_doc.stream()
+    last_swipe_doc = [doc for doc in last_swipe_doc][0]
+    last_swiped_id = last_swipe_doc.id
+    last_swiped_info = last_swipe_doc.to_dict()['swipe']
+    return last_swiped_id, last_swiped_info
