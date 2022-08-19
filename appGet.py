@@ -51,10 +51,6 @@ def fetch_geo_recommendations():
         userId = request.get_json().get('userId')
         profilesAlreadyInDeck = request.get_json().get('profilesAlreadyInDeck')
         filterData = request.get_json().get('filterData')
-        # current_user_profile, profiles_array = GeoService_get_recommended_profiles_for_user(userId=userId,
-        #                                                             filterData=filterData,
-        #                                                             redisClient=redisClient,
-        #                                                             logger=current_app.logger)
         current_app.logger.warning(f"profilesAlreadyInDeck: {profilesAlreadyInDeck}")
         recommendation_system = RecommendationSystem(current_user_id=userId, current_user_filters=filterData,
                                                      profiles_already_in_deck=profilesAlreadyInDeck,
@@ -85,12 +81,13 @@ def get_likes_dislikes_for_user_route():
         currentUserId = request.get_json().get('currentUserId')
         childCollectionName = request.get_json().get('childCollectionName')
         matchFor = request.get_json().get('matchFor')
+        noOfLastRecords = request.get_json().get('noOfLastRecords')
         # Get profile ids for given filter in likesdislikes
         ids_list = run_coroutine(LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=currentUserId,
                                                                     childCollectionName=childCollectionName,
                                                                     swipeStatusBetweenUsers=matchFor,
                                                                     redisClient=redisClient, 
-                                                                    logger=current_app.logger))
+                                                                    logger=current_app.logger, no_of_last_records=noOfLastRecords))
         ids_list = ids_list.result()         
         
         # Get profile data for ids                                    

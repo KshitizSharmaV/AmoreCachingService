@@ -45,11 +45,11 @@ class ProfilesFetcher:
         self.current_user_id = current_user_id
         self.current_user_filters = current_user_filters
         self.profiles_already_seen = set(profiles_already_in_deck)
+        # Exclude own profile from being recommended to self
+        self.profiles_already_seen.add(self.current_user_id)
         self.redis_client = redis_client
         self.logger = logger
         self.geohash_keys = ['geohash1', 'geohash2', 'geohash3', 'geohash4', 'geohash5']
-
-        self.current_user_data = self.fetch_current_user_data()
 
     def fetch_current_user_data_from_firestore(self) -> dict:
         try:
@@ -85,13 +85,11 @@ class ProfilesFetcher:
 
     def add_geohash_filter_for_radius_for_query(self):
         try:
-            _start = time.time()
             for geohash in self.geohash_keys:
                 self.current_user_filters[geohash] = '*'
             geohash_level = Geoservice_calculate_geo_hash_from_radius(
                 radius=self.current_user_filters.get('radiusDistance'))
-            self.current_user_filters[geohash_level] = self.current_user_data.get(geohash_level)
-            # print(f"add_geohash_filter_for_radius_for_query() : {time.time() - _start} \n")
+            self.current_user_filters[geohash_level] = self.current_user_data.get(geohash_level, '*')
         except Exception as e:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())

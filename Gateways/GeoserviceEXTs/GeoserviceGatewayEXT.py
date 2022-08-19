@@ -197,14 +197,14 @@ class QueryBuilder():
     genderPreference: str = '*'
     # religionPreference: str = '*'
     minAgePreference: int = 18
-    maxAgePreference: int = 18
+    maxAgePreference: int = 19
     age_range: list = field(init=False)
     age: Union[str, int] = 0
     id: str = '*'
 
     def __post_init__(self):
         self.minAgePreference = 18 if int(self.minAgePreference) < 18 else int(self.minAgePreference)
-        self.maxAgePreference = 18 if int(self.maxAgePreference) < 18 else int(self.maxAgePreference)
+        self.maxAgePreference = 19 if int(self.maxAgePreference) < 19 else int(self.maxAgePreference)
         self.age_range = list(range(self.minAgePreference, self.maxAgePreference + 1))
 
     @classmethod
@@ -227,8 +227,10 @@ class QueryBuilder():
         query_list = []
         for field in fields(self):
             if field.name not in ignore_elems and instance_dict.get(field.name) != '*':
+                # Gender Preference
                 if field.name == 'genderPreference':
-                    query_list.append(f"(@genderIdentity:{str(instance_dict.get(field.name))})")
+                    if str(instance_dict.get(field.name)) in {"Male", "Female", "Non Binary"}:
+                        query_list.append(f"(@genderIdentity:{str(instance_dict.get(field.name))})")
                 else:
                     query_list.append(f"(@{field.name}:{str(instance_dict.get(field.name))})")
         if self.age:
