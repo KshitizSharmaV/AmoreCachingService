@@ -60,7 +60,10 @@ def fetch_geo_recommendations():
         if len(profiles_array) > 0:
             current_app.logger.info(f"{userId}: Successfully fetched {len(profiles_array)} recommendations")
         else:
-            current_app.logger.warning(f"{userId}: No profile fetched for user")    
+            current_app.logger.warning(f"{userId}: No profile fetched for user")
+
+        if type(profiles_array) != list:
+            current_app.logger.error(f"Profiles array for recommendation not of List type: {type(profiles_array)}: {profiles_array}")
         return jsonify(profiles_array)
     except Exception as e:
         current_app.logger.exception(f"{userId}: Unable to fetch recommendations")
