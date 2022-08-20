@@ -61,23 +61,29 @@ class ProfilesGrader:
         try:
             docs = async_db.collection(collectionName).document(userId).collection(collectionNameChild) \
                 .where(u'swipe', u'==', matchFor).order_by(u'timestamp', direction=firestore.Query.DESCENDING).stream()
-            user_ids = [doc.id async for doc in docs]
-            return user_ids
+            user_recs = []
+            async for doc in docs:
+                doc_id = doc.id
+                doc_dict = doc.to_dict()
+                doc_dict['id'] = doc_id
+                user_recs.append(doc_dict)
+            return user_recs
         except Exception as e:
             print(traceback.format_exc())
 
     async def get_profile_ids_for_likes_dislikes_redis(self, user_id: str, sub_collection: str, swipe_type: str):
         try:
             redis_key = f"LikesDislikes:{user_id}:{sub_collection}:{swipe_type}"
-            id_list = list(self.redis_client.smembers(redis_key))
-            if not id_list:
-                id_list = await self.get_profiles_from_subcollection_firestore(collectionName=u'LikesDislikes',
+            user_recs = self.redis_client.zrevrange(redis_key, 0, -1)
+            if not user_recs:
+                user_recs = await self.get_profiles_from_subcollection_firestore(collectionName=u'LikesDislikes',
                                                                                userId=user_id,
                                                                                collectionNameChild=sub_collection,
                                                                                matchFor=swipe_type)
-                if id_list:
-                    self.redis_client.sadd(redis_key, *id_list)
-            return id_list
+                user_recs = [{rec.get('id'): rec.get('timestamp')}for rec in user_recs]
+                if user_recs:
+                    self.redis_client.zadd(redis_key, *user_recs)
+            return user_recs
         except Exception as e:
             self.logger.exception(e)
             print(traceback.format_exc())
