@@ -80,10 +80,11 @@ class ProfilesGrader:
                                                                                userId=user_id,
                                                                                collectionNameChild=sub_collection,
                                                                                matchFor=swipe_type)
-                user_recs = [{rec.get('id'): rec.get('timestamp')}for rec in user_recs]
-                if user_recs:
-                    self.redis_client.zadd(redis_key, *user_recs)
-            return user_recs
+                temp_dict = {}
+                _ = [temp_dict.update({rec.get('id'): rec.get('timestamp')}) for rec in user_recs ]
+                if temp_dict:
+                    self.redis_client.zadd(redis_key, temp_dict, xx=True)
+            return user_recs if user_recs else list(temp_dict.keys())
         except Exception as e:
             self.logger.exception(e)
             print(traceback.format_exc())
