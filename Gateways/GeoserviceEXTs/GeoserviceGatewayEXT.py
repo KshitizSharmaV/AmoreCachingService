@@ -111,7 +111,9 @@ class Profile():
     countryRaisedIn: str
     wasProfileUpdated: bool
     isProfileActive: bool
+    boostTime: float
     userCreationDate: datetime
+    deleteInitiatedDate: datetime
 
     def to_dict(self):
         ignore_elements = ['location', 'image1', 'image2', 'image3', 'image4', 'image5', 'image6']

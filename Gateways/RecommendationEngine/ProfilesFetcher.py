@@ -112,8 +112,9 @@ class ProfilesFetcher:
 
     def build_search_query(self, exclusion_query: str):
         try:
+            active_profile_query = "(@isProfileActive:true)"
             query = QueryBuilder.from_dict(self.current_user_filters).query_builder()
-            query = " ".join([query, exclusion_query] if exclusion_query else [query])
+            query = " ".join([active_profile_query, query, exclusion_query] if exclusion_query else [active_profile_query, query])
             return query
         except Exception as e:
             self.logger.exception(e)

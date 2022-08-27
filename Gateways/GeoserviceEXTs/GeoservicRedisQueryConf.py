@@ -18,6 +18,7 @@ schema = (
     TextField("genderIdentity", sortable=True),
     TextField("religion", sortable=True),
     TextField("id", sortable=True),
+    TextField("isProfileActive", sortable=True),
     NumericField("age", sortable=True)
 )
 
