@@ -22,6 +22,7 @@ from Gateways.GeoserviceGateway import GeoService_store_profiles, Geoservice_cal
 from Gateways.LikesDislikesGateway import LikesDislikes_get_profiles_already_seen_by_id
 from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis, \
     check_redis_index_exists
+from ProjectConf.AsyncioPlugin import run_coroutine
 
 
 class ProfilesFetcher:
@@ -74,10 +75,10 @@ class ProfilesFetcher:
 
     def fetch_profile_ids_already_seen_by_user(self) -> [str]:
         try:
-            profile_ids_already_swiped_by_user = asyncio.run(
+            profile_ids_already_swiped_by_user = run_coroutine(
                 LikesDislikes_get_profiles_already_seen_by_id(userId=self.current_user_id, childCollectionName="Given",
                                                               redisClient=self.redis_client, logger=self.logger))
-            self.profiles_already_seen = self.profiles_already_seen.union(set(profile_ids_already_swiped_by_user))
+            self.profiles_already_seen = self.profiles_already_seen.union(set(profile_ids_already_swiped_by_user.result()))
             return self.profiles_already_seen
         except Exception as e:
             self.logger.exception(e)
@@ -114,7 +115,7 @@ class ProfilesFetcher:
         try:
             active_profile_query = "(@isProfileActive:true)"
             query = QueryBuilder.from_dict(self.current_user_filters).query_builder()
-            query = " ".join([active_profile_query, query, exclusion_query] if exclusion_query else [active_profile_query, query])
+            query = " ".join([query, exclusion_query] if exclusion_query else [query])
             return query
         except Exception as e:
             self.logger.exception(e)

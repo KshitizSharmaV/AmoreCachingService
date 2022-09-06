@@ -85,6 +85,7 @@ def get_likes_dislikes_for_user_route():
         childCollectionName = request.get_json().get('childCollectionName')
         matchFor = request.get_json().get('matchFor')
         noOfLastRecords = request.get_json().get('noOfLastRecords')
+        current_app.logger.warn(f"Request to fetch last {noOfLastRecords} likes dislikes")
         # Get profile ids for given filter in likesdislikes
         ids_list = run_coroutine(LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=currentUserId,
                                                                     childCollectionName=childCollectionName,
@@ -154,7 +155,7 @@ def load_match_unmatch_profiles():
             current_app.logger.info(f"MatchUnmatch:{userId}:{fromCollection} fetched {len(profiles_array_future)} profiles")
         else:
             profiles_array_future = []
-            current_app.logger.warning(f"MatchUnmatch:{userId}:{fromCollection} fetched {len(profiles_array_future)} profiles")
+            current_app.logger.warning(f"MatchUnmatch:{userId}:{fromCollection} NO PROFILES TO BE FETCHED")
         return json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str)
     except Exception as e:
         current_app.logger.exception(f"{userId} unable to load {fromCollection} for user")

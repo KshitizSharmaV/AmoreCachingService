@@ -239,6 +239,7 @@ class ProfilesGrader:
             return {"profileId": user_id, "matches": matches, "unmatches": unmatches}
         except Exception as e:
             self.logger.exception(e)
+            self.logger.warning("MatchUnmatch failing in profile grader")
             print(traceback.format_exc())
 
     async def get_normalised_graded_profiles_df(self):

@@ -89,7 +89,7 @@ async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, u
             logger.info(f"{profileId} was pushed to stack {completeRedisKey}")
         return profileIds
     except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{childCollectionName} Failure to store data to cache")
+        logger.error(f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch from firestore and store data to cache")
         logger.exception(e)
         return []
 

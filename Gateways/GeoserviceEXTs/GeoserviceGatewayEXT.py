@@ -51,7 +51,7 @@ profile_type_hints = {
     'image1': ProfileImage, 'image2': ProfileImage, 'image3': ProfileImage, 'image4': ProfileImage,
     'image5': ProfileImage, 'image6': ProfileImage, 'doYouWorkOut': str, 'doYouDrink': str, 'doYouSmoke': str,
     'doYouWantBabies': str, 'profileCompletion': float, 'countryRaisedIn': str, 'wasProfileUpdated': bool,
-    'isProfileActive': bool, 'userCreationDate': datetime
+    'isProfileActive': bool, 'boostTime': float, 'userCreationDate': datetime, 'deleteInitiatedDate': datetime
 }
 
 
@@ -63,7 +63,7 @@ class Profile():
                  'community', 'politics', 'location', 'geohash', 'geohash1', 'geohash2', 'geohash3', 'geohash4',
                  'geohash5', 'description', 'country', 'discoveryStatus', 'notificationsStatus', 'image1', 'image2',
                  'image3', 'image4', 'image5', 'image6', 'doYouWorkOut', 'doYouDrink', 'doYouSmoke', 'doYouWantBabies',
-                 'profileCompletion', 'countryRaisedIn', 'wasProfileUpdated', 'isProfileActive', 'userCreationDate']
+                 'profileCompletion', 'countryRaisedIn', 'wasProfileUpdated', 'isProfileActive', 'boostTime', 'userCreationDate', 'deleteInitiatedDate']
     id: str
     firstName: str
     lastName: str

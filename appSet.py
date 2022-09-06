@@ -117,8 +117,9 @@ def rewind_single_swipe():
             allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=[swiped_user_id], logger=current_app.logger, async_db=async_db))
             allProfilesData = allProfilesData.result()
             rewinded_user_info = allProfilesData[0]
+            rewinded_dict = {"rewindedUserCard": rewinded_user_info, "swipeStatusBetweenUsers": swipeStatusBetweenUsers}
             current_app.logger.info(f"Successfully rewinded {swipeStatusBetweenUsers} by {current_user_id}")
-            return jsonify(rewinded_user_info)
+            return jsonify(rewinded_dict)
         else:
             current_app.logger.warning(f"Invalid current User ID")
         return jsonify({'status': 200})
