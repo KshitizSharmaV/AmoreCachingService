@@ -1,9 +1,13 @@
 from ProjectConf.FirestoreConf import async_db
 from google.cloud import firestore
 import time
+import asyncio
 from redis import Redis
 
-async def LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None, swipeStatusBetweenUsers=None, redisClient=None, logger=None, no_of_last_records=None):
+
+async def LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None,
+                                                              swipeStatusBetweenUsers=None, redisClient=None,
+                                                              logger=None, no_of_last_records=None):
     '''
     LikesDislikes:{userId}:{childCollectionName}:{swipeStatusBetweenUsers}:{}
     Function is called from appGet to fetch Likesdislikes for a user
@@ -21,28 +25,33 @@ async def LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=None, child
         # Check if Likesdislikes for profile already exist in cache
         if redisClient.zcard(redisBaseKey) > 0:
             logger.info(f"Fetching LikesDislikes for {redisBaseKey} from redis")
-            profileIds = await LikesDislikes_fetch_data_from_redis(userId=userId, 
-                                                            childCollectionName=childCollectionName, 
-                                                            swipeStatusBetweenUsers=swipeStatusBetweenUsers,
-                                                            redisClient=redisClient, 
-                                                            logger=logger, no_of_last_records=no_of_last_records)
+            profileIds = await LikesDislikes_fetch_data_from_redis(userId=userId,
+                                                                   childCollectionName=childCollectionName,
+                                                                   swipeStatusBetweenUsers=swipeStatusBetweenUsers,
+                                                                   redisClient=redisClient,
+                                                                   logger=logger, no_of_last_records=no_of_last_records)
         else:
             # If not fetch data from firestore & save it in cache
             logger.info(f"Fetching LikesDislikes for {redisBaseKey} from firestore")
             docs = async_db.collection("LikesDislikes").document(userId).collection(childCollectionName). \
-                where(u'swipe', u'==', swipeStatusBetweenUsers).order_by(u'timestamp', direction=firestore.Query.DESCENDING)
+                where(u'swipe', u'==', swipeStatusBetweenUsers).order_by(u'timestamp',
+                                                                         direction=firestore.Query.DESCENDING)
             # Pull all records, regardless of no_of_last_records parameter, since we're populating the redis for the first time
             profileIds = await LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=docs, userId=userId,
-                                                                    childCollectionName=childCollectionName,
-                                                                    redisClient=redisClient, logger=logger)
-            profileIds = profileIds[:no_of_last_records] if no_of_last_records else profileIds
+                                                                                         childCollectionName=childCollectionName,
+                                                                                         redisClient=redisClient,
+                                                                                         logger=logger)
+        profileIds = profileIds[:no_of_last_records] if no_of_last_records else profileIds
         return profileIds
     except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch likes dislikes data from firestore/cache")
+        logger.error(
+            f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch likes dislikes data from firestore/cache")
         logger.exception(e)
         return []
 
-async def LikesDislikes_fetch_data_from_redis(userId=None, childCollectionName=None, swipeStatusBetweenUsers=None, redisClient: Redis=None, logger=None, no_of_last_records=None):
+
+async def LikesDislikes_fetch_data_from_redis(userId=None, childCollectionName=None, swipeStatusBetweenUsers=None,
+                                              redisClient: Redis = None, logger=None, no_of_last_records=None):
     '''
     Pass in the User ID and the parameters you want LikesDislikes to filter on
     Returns a list of Profile Ids for that user under a category 
@@ -61,7 +70,9 @@ async def LikesDislikes_fetch_data_from_redis(userId=None, childCollectionName=N
         logger.exception(e)
         return []
 
-async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=None, childCollectionName=None, redisClient: Redis=None, logger=None):
+
+async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, userId=None, childCollectionName=None,
+                                                                    redisClient: Redis = None, logger=None):
     '''
     LikesDislikes:{userId}:{childCollectionName}:{swipeStatusBetweenUsers}:{}
     Store likesdislikes to redis
@@ -89,11 +100,14 @@ async def LikesDislikes_store_likes_dislikes_match_unmatch_to_redis(docs=None, u
             logger.info(f"{profileId} was pushed to stack {completeRedisKey}")
         return profileIds
     except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch from firestore and store data to cache")
+        logger.error(
+            f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch from firestore and store data to cache")
         logger.exception(e)
         return []
 
-async def LikesDislikes_delete_record_from_redis(userId=None, idToBeDeleted=None, childCollectionName=None, swipeStatusBetweenUsers=None, redisClient: Redis=None,logger=None):
+
+async def LikesDislikes_delete_record_from_redis(userId=None, idToBeDeleted=None, childCollectionName=None,
+                                                 swipeStatusBetweenUsers=None, redisClient: Redis = None, logger=None):
     '''
     MatchUnmatch:{userId}:{childCollectionName} store Match or Unmatch in firestore for user
         : param userId: Redis Key To be deleted from
@@ -142,3 +156,15 @@ async def LikesDislikes_async_store_swipe_task(firstUserId=None, secondUserId=No
         logger.error(f"{redisBaseKey} failed stored {secondUserId} in firestore/reds")
         logger.exception(e)
         return False
+
+
+async def LikesDislikes_fetch_users_given_swipes(user_id, redis_client: Redis, logger):
+    try:
+        return await asyncio.gather(
+            *[LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=user_id, childCollectionName="Given",
+                                                                  swipeStatusBetweenUsers=swipe_info,
+                                                                  redisClient=redis_client, logger=logger) for
+              swipe_info in ['Likes', 'Dislikes', 'Superlikes']])
+    except Exception as e:
+        logger.error(f"Unable to fetch given swipes by user {user_id}")
+        logger.exception(e)

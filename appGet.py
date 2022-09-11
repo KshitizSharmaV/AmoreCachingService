@@ -2,13 +2,14 @@ import flask
 from flask import Blueprint, current_app, jsonify, request
 import json
 from itertools import chain
+import asyncio
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.ReddisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
 from Gateways.LikesDislikesGateway import LikesDislikes_fetch_userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
-from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
+from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_fetch_userdata_from_firebase_or_redis, MatchUnmatch_get_match_unmatch_nomatch_for_user
 from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis, check_redis_index_exists
 from Gateways.RecommendationEngine.BuildRecommendations import RecommendationSystem
 
@@ -92,8 +93,17 @@ def get_likes_dislikes_for_user_route():
                                                                     swipeStatusBetweenUsers=matchFor,
                                                                     redisClient=redisClient, 
                                                                     logger=current_app.logger, no_of_last_records=noOfLastRecords))
-        ids_list = ids_list.result()         
-        
+        ids_list = ids_list.result()
+
+        if childCollectionName == "Received":
+            # Don't show the profiles that user has already swiped from their received list.
+            swipe_received_profiles_already_swiped = \
+                run_coroutine(MatchUnmatch_get_match_unmatch_nomatch_for_user(userId=currentUserId,
+                                                                              redisClient=redisClient,
+                                                                              logger=current_app.logger))
+            swipe_received_profiles_already_swiped = swipe_received_profiles_already_swiped.result()
+            ids_list = list(set(ids_list).difference(*swipe_received_profiles_already_swiped))
+
         # Get profile data for ids                                    
         profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
                                                                  logger=current_app.logger, async_db=async_db))

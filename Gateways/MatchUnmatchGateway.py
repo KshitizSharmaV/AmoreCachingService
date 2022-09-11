@@ -1,7 +1,4 @@
 import asyncio
-import json
-import time
-from google.cloud import firestore
 from redis.client import Redis
 
 from ProjectConf.FirestoreConf import async_db
@@ -112,81 +109,6 @@ async def MatchUnmatch_unmatch_single_user(user_id_1: str = None, user_id_2: str
         logger.error(f"Unable to unmatch users {user_id_1} {user_id_2}")
         logger.exception(e)
         return False
-    
-
-
-async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None, redisClient=None, logger=None):
-    '''
-    Send back match unmatch for user
-    If redis key MatchUnmatch:{userId}:{childCollectionName} Exist
-        Load profiles from redis and send back
-    Else:
-        Load profiles from firestore
-    params: userId
-    params: childCollectionName: Match or Unmatch
-    '''
-    try:
-        redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
-        # Check if LikesDislikes for profile already exist in cache
-        if redisClient.scard(redisBaseKey) > 0:
-            profileIds = await MatchUnmatch_fetch_data_from_redis(userId=userId, 
-                                                            childCollectionName=childCollectionName, 
-                                                            redisClient=redisClient, 
-                                                            logger=logger)
-            logger.info(f"{redisBaseKey} fetched {len(profileIds)} profiles from redis")
-            return profileIds
-        else:
-            # If not fetch data from firestore & save it in cache
-            docs = async_db.collection("LikesDislikes").document(userId).collection(childCollectionName).order_by(u'timestamp', direction=firestore.Query.DESCENDING)
-            profileIds = await MatchUnmatch_store_match_unmatch_to_redis(docs=docs, userId=userId,
-                                                                    childCollectionName=childCollectionName,
-                                                                    redisClient=redisClient, 
-                                                                    logger=logger)
-            logger.info(f"{redisBaseKey} fetched {len(profileIds)} profiles from firestore")
-            return profileIds
-    except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch likes dislikes data from firestore/cache")
-        logger.exception(e)
-        return []
-    
-
-async def MatchUnmatch_fetch_data_from_redis(userId=None, childCollectionName=None, redisClient=None, logger=None):
-    '''
-    Fetch match unmatch data from redis 
-        : param userId: user id
-        : param childCollectionName: Match or Unmatch
-    '''
-    try:
-        redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
-        # Redis function 'smembers' will give you the length of set inside redis key
-        profileIds = list(redisClient.smembers(redisBaseKey))
-        logger.info(f"Fetched {len(profileIds)} from cache:{redisBaseKey}")
-        return profileIds
-    except Exception as e:
-        logger.error(f"Unable to fetch LikesDislikes data from cache {redisBaseKey}")
-        logger.exception(e)
-        return []
-
-
-async def MatchUnmatch_store_match_unmatch_to_redis(docs=None, userId=None, childCollectionName=None, redisClient=None, logger=None):
-    '''
-    MatchUnmatch:{userId}:{childCollectionName} store Match or Unmatch in firestore for user
-        : param userId: user id
-        : param docs: LikesDislikes collection, subcollection(Match/Unmatch) documents to iterate 
-        : param childCollectionName: Match or Unmatch
-    '''
-    try:
-        redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
-        profileIds = []
-        async for doc in docs.stream():
-            profileIds.append(doc.id)
-            redisClient.sadd(redisBaseKey,doc.id)
-            logger.info(f"{doc.id} was pushed to stack {redisBaseKey}")
-        return profileIds
-    except Exception as e:
-        logger.error(f"MatchUnmatch:{userId}:{childCollectionName} Failure to store data to cache")
-        logger.exception(e)
-        return []
 
 
 async def MatchUnmatch_delete_record_from_redis(user_id_1=None, user_id_2= None, childCollectionName=None, redisClient=None, logger=None):
