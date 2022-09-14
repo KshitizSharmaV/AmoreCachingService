@@ -171,7 +171,8 @@ class Profile():
             decoded_dict = {}
             for key, val in inspect.signature(cls).parameters.items():
                 if cls.__annotations__[key] in user_defined_types and not isinstance(data.get(key), dict):
-                    data[key] = json.loads(data.get(key)) if data.get(key) else val.default
+                    # if empty image or location data, assign empty dictionary while decoding redis data
+                    data[key] = json.loads(data.get(key)) if data.get(key) else {}
                 if val.default == val.empty:
                     decoded_dict.update({key: data.get(key)})
                 else:
