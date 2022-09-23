@@ -39,4 +39,4 @@ jobs:
         CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
         ZONE_NAME: ${{ secrets.ZONE_NAME }}
       with:
-        args: apply -f ./redis_svc_files/
+        args: apply -f ./redis_svc_files/deployment.yaml
