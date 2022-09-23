@@ -28,8 +28,8 @@ jobs:
     needs: setup-gcloud
     runs-on: ubuntu-latest
     steps:
-    # - name: Checkout
-    #   uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v3
 
     - name: kubectl - Google Cloud GKE cluster.
       uses: ameydev/gke-kubectl-action@master
