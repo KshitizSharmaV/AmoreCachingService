@@ -29,6 +29,16 @@ spec:
         app: redis-primary
     spec:
       subdomain: primary
+      # Assign to redis-pool nodepool
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cloud.google.com/gke-nodepool
+                operator: In
+                values:
+                - redis-pool 
       containers:
       - name: redis
         image: redislabs/redismod

@@ -1,0 +1,42 @@
+name: Deploy Redis on GKE
+on:
+  push:
+    branches: [ main ]
+jobs:
+  setup-gcloud:
+    name: setup-gcloud
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ secrets.PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v0'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'
+
+  deploy-to-gke:
+    needs: setup-gcloud
+    runs-on: ubuntu-latest
+    steps:
+    # - name: Checkout
+    #   uses: actions/checkout@v3
+
+    - name: kubectl - Google Cloud GKE cluster.
+      uses: ameydev/gke-kubectl-action@master
+      env:
+        PROJECT_ID: ${{ secrets.PROJECT_ID }}
+        APPLICATION_CREDENTIALS: ${{ secrets.COMPUTE_ENGINE_SA_KEY }}
+        CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+        ZONE_NAME: ${{ secrets.ZONE_NAME }}
+      with:
+        args: apply -f ./redis_svc_files/
