@@ -41,7 +41,7 @@ spec:
                 - redis-pool 
       containers:
       - name: redis
-        image: redislabs/redismod
+        image: redislabs/redisearch
         command:
           - "redis-server"
         args:
