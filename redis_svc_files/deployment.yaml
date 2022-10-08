@@ -42,11 +42,6 @@ spec:
       containers:
       - name: redis
         image: redislabs/redisearch
-        command:
-          - "redis-server"
-        args:
-          - "--protected-mode"
-          - "no"
         ports:
         - containerPort: 6379
         # volumeMounts:

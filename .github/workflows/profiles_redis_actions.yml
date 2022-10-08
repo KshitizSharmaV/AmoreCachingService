@@ -1,13 +1,12 @@
-name: Deploy Redis on GKE
-on: 
+name: Build and Push Profiles Redis Image to Google Cloud Platform
+on:
   workflow_dispatch:
-  # push:
-  #   branches: [ main ]
 jobs:
-  setup-gcloud:
-    name: setup-gcloud
+  build-push-gcr:
+    name: Build and Push to GCP
     runs-on: ubuntu-latest
     env:
+      IMAGE_NAME: profiles-redis
       PROJECT_ID: ${{ secrets.PROJECT_ID }}
     steps:
       - name: Checkout
@@ -25,8 +24,28 @@ jobs:
       - name: 'Use gcloud CLI'
         run: 'gcloud info'
 
+      - name: Build Docker Image
+        run: docker build -t $IMAGE_NAME:latest -f Dockerfile_ProfileRedis .
+
+      # - name: Automatic Tagging of Releases
+      #   id: increment-git-tag
+      #   run: |
+      #     bash ./scripts/git_update.sh -v major
+      
+      - name: Configure Docker Client
+        run: |-
+          gcloud auth configure-docker --quiet
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+      
+      - name: Push Docker Image to Artifact Registry
+        env:
+          GIT_TAG: latest
+        run: |-
+          docker tag $IMAGE_NAME:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE_NAME:latest
+          docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE_NAME:latest
+  
   deploy-to-gke:
-    needs: setup-gcloud
+    needs: build-push-gcr
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -40,4 +59,4 @@ jobs:
         CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
         ZONE_NAME: ${{ secrets.ZONE_NAME }}
       with:
-        args: apply -f ./redis_svc_files/deployment.yaml
+        args: apply -f ProfilesRedisService/deployment.yaml

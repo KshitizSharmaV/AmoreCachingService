@@ -1,0 +1,53 @@
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: profiles-redis-deployment
+  labels:
+    app: profiles-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: profiles-redis
+  template:
+    metadata:
+      labels:
+        app: profiles-redis
+    spec:
+    # Assign to redis-pool nodepool
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cloud.google.com/gke-nodepool
+                operator: In
+                values:
+                - redis-pool 
+      containers:
+        - name: profiles-redis
+          image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/profiles-redis:latest
+          # imagePullPolicy: Never
+          env:
+            - name: FIREBASE_CRED
+              valueFrom:
+                secretKeyRef:
+                  name: firebase-secret
+                  key: serviceAccountKey.json
+      restartPolicy: Always
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: profiles-redis-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: profiles-redis-service
+  selector:
+    app: profiles-redis
