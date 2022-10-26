@@ -1,5 +1,6 @@
 /amore_caching_service_venv/
 /Logs/
+/stagingServiceAccountKey.json
 /serviceAccountKey.json
 /CachingService/Logs/
 *.pyc
