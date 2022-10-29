@@ -1,0 +1,53 @@
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-deployment
+  labels:
+    app: messaging
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: messaging
+  template:
+    metadata:
+      labels:
+        app: messaging
+    spec:
+    # Assign to redis-pool nodepool
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cloud.google.com/gke-nodepool
+                operator: In
+                values:
+                - redis-pool 
+      containers:
+        - name: messaging
+          image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/messaging:latest
+          # imagePullPolicy: Never
+          env:
+            - name: FIREBASE_CRED
+              valueFrom:
+                secretKeyRef:
+                  name: firebase-secret
+                  key: stagingServiceAccountKey.json
+      restartPolicy: Always
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-service
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: messaging-service
+  selector:
+    app: messaging
