@@ -1,4 +1,4 @@
-name: Build and Push Profiles Redis Image to Google Cloud Platform
+name: Build and Push Profiles Redis Service to Google Kubernetes Engine
 on:
   workflow_dispatch:
 jobs:
