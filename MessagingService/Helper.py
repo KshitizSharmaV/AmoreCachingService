@@ -39,12 +39,14 @@ class ChatText():
     text: str
     timestamp: datetime
     otherUserUpdated: bool
+    giphyId: str = ""
+    type: str = "text"
 
     @classmethod
     def from_dict(cls, data):
         return cls(
             **{
-                key: (data[key] if val.default == val.empty else data.get(key, val.default))
+                key: (data.get(key) if val.default == val.empty else data.get(key, val.default))
                 for key, val in inspect.signature(cls).parameters.items()
             }
         )
