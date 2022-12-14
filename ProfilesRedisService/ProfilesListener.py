@@ -15,14 +15,14 @@ import time
 import logging
 from datetime import datetime
 from ProjectConf.FirestoreConf import db
-from ProjectConf.ReddisConf import redisClient
+from ProjectConf.RedisConf import redisClient
 from ProjectConf.AsyncioPlugin import run_coroutine
 from logging.handlers import TimedRotatingFileHandler
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 
 # Log Settings
-LOG_FILENAME = datetime.now().strftime("%H_%M_%d_%m_%Y") + ".log"
+LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
 if not os.path.exists('Logs/ProfilesRedisService/'):
     os.makedirs('Logs/ProfilesRedisService/')
 logHandler = TimedRotatingFileHandler(f'Logs/ProfilesRedisService/{LOG_FILENAME}', when="midnight")

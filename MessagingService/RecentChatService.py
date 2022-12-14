@@ -18,7 +18,7 @@ from MessagingService.Helper import *
 
 
 # Log Settings
-LOG_FILENAME = datetime.now().strftime("%H_%M_%d_%m_%Y")+".log"
+LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
 if not os.path.exists('Logs/MessagingService/'):
     os.makedirs('Logs/MessagingService/')
 logHandler = TimedRotatingFileHandler(f"Logs/MessagingService/{LOG_FILENAME}",when="midnight")

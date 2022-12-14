@@ -14,14 +14,12 @@ from functools import lru_cache
 from dataclasses import asdict
 from Utilities.DictOps import ignore_none
 from ProjectConf.FirestoreConf import db
-from ProjectConf.ReddisConf import redisClient
+from ProjectConf.RedisConf import redisClient, try_creating_profile_index_for_redis, check_redis_index_exists
 from ProjectConf.LoggerConf import logger as logger1
 from redis.commands.search.query import Query
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import QueryBuilder, Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles, Geoservice_calculate_geo_hash_from_radius
 from Gateways.LikesDislikesGateway import LikesDislikes_get_profiles_already_seen_by_id
-from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis, \
-    check_redis_index_exists
 from ProjectConf.AsyncioPlugin import run_coroutine
 
 

@@ -9,7 +9,7 @@ from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.AsyncioPlugin import run_coroutine
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
-from ProjectConf.ReddisConf import redisClient
+from ProjectConf.RedisConf import redisClient
 from ProjectConf.LoggerConf import logger as logger1
 
 

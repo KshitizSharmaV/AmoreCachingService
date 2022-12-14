@@ -4,7 +4,7 @@ from flask import Blueprint, current_app, jsonify, request
 import json
 
 from ProjectConf.AsyncioPlugin import run_coroutine
-from ProjectConf.ReddisConf import redisClient
+from ProjectConf.RedisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
