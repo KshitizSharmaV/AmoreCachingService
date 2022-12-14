@@ -9,7 +9,6 @@ from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.AsyncioPlugin import run_coroutine
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
-from ProjectConf.RedisConf import redisClient
 from ProjectConf.LoggerConf import logger as logger1
 
 
@@ -30,22 +29,19 @@ class RecommendationSystem:
     current_user_filters: dict
     profiles_already_in_deck: [str]
     other_users_data: dict
-    redis_client: Redis
     logger: Logger
 
     normalised_other_users_df: pd.DataFrame
 
-    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str],
-                 redis_client: Redis, logger: Logger):
+    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str], logger: Logger):
         self.current_user_id = current_user_id
         self.current_user_filters = current_user_filters
         self.profiles_already_in_deck = profiles_already_in_deck
-        self.redis_client = redis_client
         self.logger = logger
         self.profiles_fetcher = ProfilesFetcher(current_user_id=current_user_id,
                                                 current_user_filters=current_user_filters,
                                                 profiles_already_in_deck=profiles_already_in_deck,
-                                                redis_client=redis_client, logger=logger)
+                                                logger=logger)
 
     def fetch_current_and_other_users_data(self):
         """
@@ -68,7 +64,7 @@ class RecommendationSystem:
             if self.other_users_data:
                 self.profile_grader = ProfilesGrader(current_user_data=self.current_user_data,
                                                      other_users_data=self.other_users_data,
-                                                     redis_client=self.redis_client, logger=self.logger)
+                                                     logger=self.logger)
                 future = run_coroutine(self.profile_grader.get_normalised_graded_profiles_df())
                 self.normalised_other_users_df = future.result()
             else:
@@ -103,6 +99,7 @@ class RecommendationSystem:
 
 if __name__ == "__main__":
     recommendation_obj = RecommendationSystem(current_user_id="nVA4bAkUWubnEFGTVdO4IVUDDW02",
-                                              current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[],
-                                              redis_client=redisClient, logger=logger1)
+                                              current_user_filters={"radiusDistance": 50}, 
+                                              profiles_already_in_deck=[],
+                                              logger=logger1)
     recommendation_obj.build_recommendations()

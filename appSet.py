@@ -4,7 +4,6 @@ from flask import Blueprint, current_app, jsonify, request
 import json
 
 from ProjectConf.AsyncioPlugin import run_coroutine
-from ProjectConf.RedisConf import redisClient
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
@@ -33,7 +32,6 @@ def store_profile_grading_score():
         logger.info(normalizedAllProfileScoresDf)
         future = run_coroutine(
                     store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
-                                                    redisClient=redisClient,
                                                     logger=current_app.logger,
                                                     async_db=async_db))
         newProfilesCached = future.result()
@@ -67,7 +65,6 @@ def store_likes_dislikes_superlikes():
                                                                                             swipeStatusBetweenUsers=swipeInfo,
                                                                                             upgradeLikeToSuperlike=upgradeLikeToSuperlike,
                                                                                             async_db=async_db,
-                                                                                            redisClient=redisClient,
                                                                                             logger=current_app.logger))
         future.result()
         current_app.logger.info(f"Storing {currentUserId} {swipeInfo} on {swipedUserId}")
@@ -86,8 +83,7 @@ def unmatch():
         other_user_id = request.get_json().get('other_user_id')
         future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
                                                         other_user_id=other_user_id,
-                                                     redisClient=redisClient,
-                                                     logger=current_app.logger))
+                                                        logger=current_app.logger))
         future.result()
         current_app.logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
         return jsonify({'status': 200})
@@ -111,10 +107,11 @@ def rewind_single_swipe():
             future = run_coroutine(Rewind_task_function(current_user_id=current_user_id, 
                                                         swiped_user_id=swiped_user_id,
                                                         swipeStatusBetweenUsers=swipeStatusBetweenUsers,
-                                                        redisClient=redisClient, 
                                                         logger=current_app.logger))
             future.result()
-            allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=[swiped_user_id], logger=current_app.logger, async_db=async_db))
+            allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[swiped_user_id], 
+                                                                logger=current_app.logger, 
+                                                                async_db=async_db))
             allProfilesData = allProfilesData.result()
             rewinded_user_info = allProfilesData[0]
             rewinded_dict = {"rewindedUserCard": rewinded_user_info, "swipeStatusBetweenUsers": swipeStatusBetweenUsers}
@@ -140,7 +137,6 @@ def store_profile():
         profile = request.get_json().get('profile')
         # Update the cache with profile data?
         future = run_coroutine(GeoService_store_profiles(profile=profile,
-                                                         redisClient=redisClient,
                                                          logger=current_app.logger))
         result = future.result()
         current_app.logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
@@ -170,12 +166,10 @@ def report_profile():
         reason_given = request.get_json().get('reasonGiven')
         description_given = request.get_json().get('descriptionGiven')
         status = Report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
-                                     reason_given=reason_given, description_given=description_given,
-                                     redisClient=redisClient)
+                                     reason_given=reason_given, description_given=description_given)
         future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
                                                     other_user_id=reported_profile_id,
-                                                     redisClient=redisClient,
-                                                     logger=current_app.logger))
+                                                    logger=current_app.logger))
         future.result()
         current_app.logger.info(f"Successfully reported profile {reported_profile_id}")
         return jsonify({'status': 200})
@@ -198,7 +192,7 @@ def match_profiles_on_direct_message():
         other_user_id = request.get_json().get('otherUserId')
         future = run_coroutine(
             match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id,
-                                                  async_db=async_db, logger=logger, redis_client=redisClient))
+                                                  async_db=async_db, logger=logger))
         _ = future.result()
         current_app.logger.info(f"Successfully matched profile {current_user_id} and {other_user_id}")
         return jsonify({'status': 200})

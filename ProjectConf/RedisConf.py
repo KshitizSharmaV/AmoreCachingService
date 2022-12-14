@@ -12,14 +12,14 @@ from redis.commands.search.query import Query
 in_env = os.getenv('CACHING_SERVICE_SERVICE_HOST', None)
 
 if in_env:
-    redisClient = redis.StrictRedis (
+    redis_client = redis.StrictRedis (
         host = "redis-svc.default",
         port = "6379",
         charset="utf-8",
         decode_responses=True
     )
 else:
-    redisClient = redis.StrictRedis (
+    redis_client = redis.StrictRedis (
         host = "localhost",
         port = "6379",
         charset="utf-8",
@@ -56,7 +56,7 @@ def try_creating_profile_index_for_redis():
     """Creates indexes in redis for profiles querying
     """
     try:
-        redisClient.ft("idx:profile").create_index(profile_schema, definition=profile_index_def)
+        redis_client.ft("idx:profile").create_index(profile_schema, definition=profile_index_def)
         print("Index for profiles created")
     except ResponseError:
         print("Index already exists")
@@ -66,7 +66,7 @@ def try_creating_fcm_index_for_redis():
     """Create a index for FCMTokens in redis for querying
     """
     try:
-        redisClient.ft("idx:FCMTokens").create_index(fcm_schema, definition=profile_index_def)
+        redis_client.ft("idx:FCMTokens").create_index(fcm_schema, definition=profile_index_def)
         print("Index for FCMTokens created")
     except ResponseError:
         print("Index already exists for FCM Tokens")
@@ -79,7 +79,7 @@ def check_redis_index_exists(index: str) -> bool:
         index: String: to check if index exists in redis
     """
     try:
-        redisClient.ft(index_name=index).info()
+        redis_client.ft(index_name=index).info()
         return True
     except ResponseError:
         return False

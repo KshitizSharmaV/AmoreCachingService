@@ -14,7 +14,7 @@ async def unmatch_task_recent_chats(profileId1=None, profileId2=None, async_db=N
 
 
 async def match_two_profiles_for_direct_message(current_user_id: str = None, other_user_id: str = None,
-                                          async_db: AsyncClient = None, logger=None, redis_client: Redis = None):
+                                          async_db: AsyncClient = None, logger=None):
     """
     - Task 1: Add superlike records in LikesDislikes.<userID>.Given.<userID> for both users
     - Task 2: Add superlike records in RedisCache
@@ -25,8 +25,7 @@ async def match_two_profiles_for_direct_message(current_user_id: str = None, oth
     :param other_user_id: Other User's ID
     :param async_db: Firestore Async Client for the project
     :param logger: Custom app logger instance
-    :param redis_client: Redis client instance
-
+    
     :return: Gathered tasks as coroutine
     """
     try:
@@ -36,14 +35,14 @@ async def match_two_profiles_for_direct_message(current_user_id: str = None, oth
                                                                          swipedUserId=other_user_id,
                                                                          swipeStatusBetweenUsers='Superlikes',
                                                                          async_db=async_db,
-                                                                         redisClient=redis_client, logger=logger))
+                                                                         logger=logger))
         logger.info(f"match on dm request CHECKPOINT 1")
         other_user_like_record_task = asyncio.create_task(
             LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=other_user_id,
                                                                          swipedUserId=current_user_id,
                                                                          swipeStatusBetweenUsers='Superlikes',
                                                                          async_db=async_db,
-                                                                         redisClient=redis_client, logger=logger))
+                                                                         logger=logger))
         return asyncio.gather(*[current_user_like_record_task, other_user_like_record_task])
     except Exception as e:
         logger.error(f"Failed to Match Direct Message Profiles {current_user_id} and {other_user_id}")

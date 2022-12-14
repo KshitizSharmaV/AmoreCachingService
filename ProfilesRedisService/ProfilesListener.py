@@ -15,7 +15,7 @@ import time
 import logging
 from datetime import datetime
 from ProjectConf.FirestoreConf import db
-from ProjectConf.RedisConf import redisClient
+from ProjectConf.RedisConf import redis_client
 from ProjectConf.AsyncioPlugin import run_coroutine
 from logging.handlers import TimedRotatingFileHandler
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
@@ -37,7 +37,7 @@ def on_create_or_update_profile(document):
     try:
         profile_data = Profile.encode_data_for_redis(document.to_dict())
         profile_data['id'] = document.id
-        future = run_coroutine(GeoService_store_profiles(profile=profile_data, redisClient=redisClient, logger=logger))
+        future = run_coroutine(GeoService_store_profiles(profile=profile_data, logger=logger))
         result = future.result()
     except Exception as e:
         logger.exception(e)
@@ -48,7 +48,7 @@ def on_create_or_update_profile(document):
 def on_delete_profile(document):
     try:
         deletion_hash_name = f"profile:{document.id}"
-        redisClient.delete(deletion_hash_name)
+        redis_client.delete(deletion_hash_name)
     except Exception as e:
         logger.exception(e)
         logger.error("Error occurred while deleting redis Profiles Listener")

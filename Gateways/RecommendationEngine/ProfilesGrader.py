@@ -11,7 +11,7 @@ from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_fetch_userdata_from_fir
 
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
-from ProjectConf.RedisConf import redisClient
+from ProjectConf.RedisConf import redis_client
 from ProjectConf.LoggerConf import logger as logger1
 
 
@@ -25,7 +25,6 @@ class ProfilesGrader:
     - All Scores aggregator
     """
     current_user_data: dict
-    redis_client: Redis
     logger: Logger
     weights: dict = {
         "popularity_score": 0.45,
@@ -49,10 +48,9 @@ class ProfilesGrader:
     #     "matchingScoreWeighted": 0.30
     # }
 
-    def __init__(self, current_user_data: dict, other_users_data: dict, redis_client: Redis, logger):
+    def __init__(self, current_user_data: dict, other_users_data: dict, logger):
         self.current_user_data = current_user_data
         self.other_users_data = other_users_data
-        self.redis_client = redis_client
         self.logger = logger
 
     async def get_profiles_from_subcollection_firestore(self, collectionName=None, userId=None,
@@ -74,7 +72,7 @@ class ProfilesGrader:
     async def get_profile_ids_for_likes_dislikes_redis(self, user_id: str, sub_collection: str, swipe_type: str):
         try:
             redis_key = f"LikesDislikes:{user_id}:{sub_collection}:{swipe_type}"
-            user_recs = self.redis_client.zrevrange(redis_key, 0, -1)
+            user_recs = redis_client.zrevrange(redis_key, 0, -1)
             if not user_recs:
                 user_recs = await self.get_profiles_from_subcollection_firestore(collectionName=u'LikesDislikes',
                                                                                userId=user_id,
@@ -83,7 +81,7 @@ class ProfilesGrader:
                 temp_dict = {}
                 _ = [temp_dict.update({rec.get('id'): rec.get('timestamp')}) for rec in user_recs ]
                 if temp_dict:
-                    self.redis_client.zadd(redis_key, temp_dict, xx=True)
+                    redis_client.zadd(redis_key, temp_dict, xx=True)
             return user_recs if user_recs else list(temp_dict.keys())
         except Exception as e:
             self.logger.exception(e)
@@ -231,8 +229,7 @@ class ProfilesGrader:
     async def get_no_of_matches_and_unmatches_for_user(self, user_id):
         try:
             data = await asyncio.gather(*[
-                MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=user_id, childCollectionName=fromCollection,
-                                                                   redisClient=self.redis_client, logger=self.logger)
+                MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=user_id, childCollectionName=fromCollection, logger=self.logger)
                 for
                 fromCollection in ['Match', 'Unmatch']])
             matches, unmatches = len(data[0]), len(data[1])
@@ -282,8 +279,7 @@ class ProfilesGrader:
 
 if __name__ == "__main__":
     profiles_fetcher = ProfilesFetcher(current_user_id="nVA4bAkUWubnEFGTVdO4IVUDDW02",
-                                       current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[],
-                                       redis_client=redisClient, logger=logger1)
+                                       current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[], logger=logger1)
     current_user_data = profiles_fetcher.fetch_current_user_data()
     # Elimination process is over
     other_users_data = profiles_fetcher.get_final_fetched_profiles()
@@ -291,6 +287,6 @@ if __name__ == "__main__":
     # Eliminated data is ranked based on scores
     profile_grader = ProfilesGrader(current_user_data=current_user_data,
                                     other_users_data=other_users_data,
-                                    redis_client=redisClient, logger=logger1)
+                                    logger=logger1)
     normalised_other_users_df = asyncio.run(profile_grader.get_normalised_graded_profiles_df())
     print(normalised_other_users_df)

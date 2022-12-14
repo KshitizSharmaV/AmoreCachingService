@@ -9,17 +9,16 @@ from google.cloud import firestore
 from ProjectConf.FirestoreConf import async_db
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 from Gateways.LikesDislikesGatewayEXT import LikesDislikes_fetch_users_given_swipes
+from ProjectConf.RedisConf import redis_client
 
-
-async def MatchUnmatch_get_match_unmatch_nomatch_for_user(userId: str, redisClient: Redis, logger):
+async def MatchUnmatch_get_match_unmatch_nomatch_for_user(userId: str, logger):
     return await asyncio.gather(*[
-        MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, childCollectionName=cc_name,
-                                                           redisClient=redisClient, logger=logger) for cc_name
+        MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, childCollectionName=cc_name, logger=logger) for cc_name
         in ["Match", "Unmatch", "NoMatch"]])
 
 
 async def MatchUnmatch_store_match_or_nomatch(currentUserId=None, swipedUserId=None, match_status: str = None,
-                                              redisClient=None, logger=None):
+                                              logger=None):
     try:
         # Write to Firestore
         query_current = async_db.collection("LikesDislikes").document(currentUserId).collection(match_status).document(
@@ -33,9 +32,9 @@ async def MatchUnmatch_store_match_or_nomatch(currentUserId=None, swipedUserId=N
         logger.info(f"Stored {match_status} in Firestore for current: {currentUserId} and swiped: {swipedUserId}")
 
         # Write Match to redis
-        redisClient.sadd(f"MatchUnmatch:{currentUserId}:{match_status}", swipedUserId)
+        redis_client.sadd(f"MatchUnmatch:{currentUserId}:{match_status}", swipedUserId)
 
-        redisClient.sadd(f"MatchUnmatch:{swipedUserId}:{match_status}", currentUserId)
+        redis_client.sadd(f"MatchUnmatch:{swipedUserId}:{match_status}", currentUserId)
 
         logger.info(f"Stored {match_status} in Redis for current: {currentUserId} and swiped: {swipedUserId}")
     except Exception as e:
@@ -43,16 +42,15 @@ async def MatchUnmatch_store_match_or_nomatch(currentUserId=None, swipedUserId=N
         logger.exception(e)
 
 
-async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=None, redisClient=None, logger=None):
+async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=None, logger=None):
     try:
         # Fetch the user data for current user and swiped user id
-        currentUserData = await ProfilesGateway_get_profile_by_ids(redisClient=redisClient,
-                                                                   profileIdList=[currentUserId], logger=logger,
+        currentUserData = await ProfilesGateway_get_profile_by_ids(profileIdList=[currentUserId], logger=logger,
                                                                    async_db=async_db)
         currentUserData = currentUserData.pop()
-        swipedUserData = await ProfilesGateway_get_profile_by_ids(redisClient=redisClient,
-                                                                  profileIdList=[swipedUserId], logger=logger,
-                                                                  async_db=async_db)
+        swipedUserData = await ProfilesGateway_get_profile_by_ids(profileIdList=[swipedUserId], 
+                                                                logger=logger,
+                                                                async_db=async_db)
         swipedUserData = swipedUserData.pop()
 
         # Write match to recent chats
@@ -90,8 +88,7 @@ async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=No
         logger.exception(e)
 
 
-async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserId=None, currentUserSwipe=None,
-                                                 redisClient=None, logger=None):
+async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserId=None, currentUserSwipe=None, logger=None):
     '''
     Check the match between both users
         : If the swipe given is like or superlike
@@ -106,7 +103,7 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
     '''
     try:
         likesGivenBySwipedUser, dislikesGivenBySwipedUser, superlikesGivenBySwipedUser = \
-            await LikesDislikes_fetch_users_given_swipes(user_id=swipedUserId, redis_client=redisClient, logger=logger)
+            await LikesDislikes_fetch_users_given_swipes(user_id=swipedUserId, logger=logger)
 
         # If the swipe given is Likes or Superlikes
         if currentUserSwipe == "Likes" or currentUserSwipe == "Superlikes":
@@ -116,19 +113,15 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
                 logger.info(f'{currentUserId} & {swipedUserId} swiped on each other, its a Match')
 
                 # Write Match to firestore and redis
-                await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId,
-                                                          match_status="Match", redisClient=redisClient,
-                                                          logger=logger)
-
-                await MatchUnmatch_write_to_recent_chats(currentUserId=currentUserId, swipedUserId=swipedUserId,
-                                                         redisClient=redisClient, logger=logger)
+                await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId, match_status="Match", logger=logger)
+                await MatchUnmatch_write_to_recent_chats(currentUserId=currentUserId, swipedUserId=swipedUserId, logger=logger)
 
                 logger.info(f"Match successfully written in redis/firestore for {swipedUserId} & {currentUserId}")
 
             elif currentUserId in dislikesGivenBySwipedUser:
                 # current user likes but receiver dislikes -- if exists: -- No Match
                 await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId,
-                                                          match_status="NoMatch", redisClient=redisClient,
+                                                          match_status="NoMatch",
                                                           logger=logger)
             else:
                 # Waiting for other user to swipe
@@ -140,7 +133,7 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
             # Dislike -- check given of received user -- if current user exists in it: No Match
             if currentUserId in set(likesGivenBySwipedUser + superlikesGivenBySwipedUser + dislikesGivenBySwipedUser):
                 await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId,
-                                                          match_status="NoMatch", redisClient=redisClient,
+                                                          match_status="NoMatch",
                                                           logger=logger)
             # Else: waiting on received user to swipe
 
@@ -151,8 +144,7 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
         return False
 
 
-async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None, redisClient=None,
-                                                             logger=None):
+async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None, logger=None):
     '''
     Send back match unmatch for user
     If redis key MatchUnmatch:{userId}:{childCollectionName} Exist
@@ -165,10 +157,9 @@ async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childC
     try:
         redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
         # Check if LikesDislikes for profile already exist in cache
-        if redisClient.scard(redisBaseKey) > 0:
+        if redis_client.scard(redisBaseKey) > 0:
             profileIds = await MatchUnmatch_fetch_data_from_redis(userId=userId,
                                                                   childCollectionName=childCollectionName,
-                                                                  redisClient=redisClient,
                                                                   logger=logger)
             logger.info(f"{redisBaseKey} fetched {len(profileIds)} profiles from redis")
             return profileIds
@@ -178,7 +169,6 @@ async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childC
                 u'timestamp', direction=firestore.Query.DESCENDING)
             profileIds = await MatchUnmatch_store_match_unmatch_to_redis(docs=docs, userId=userId,
                                                                          childCollectionName=childCollectionName,
-                                                                         redisClient=redisClient,
                                                                          logger=logger)
             logger.info(f"{redisBaseKey} fetched {len(profileIds)} profiles from firestore")
             return profileIds
@@ -189,8 +179,7 @@ async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childC
         return []
 
 
-async def MatchUnmatch_store_match_unmatch_to_redis(docs=None, userId=None, childCollectionName=None, redisClient=None,
-                                                    logger=None):
+async def MatchUnmatch_store_match_unmatch_to_redis(docs=None, userId=None, childCollectionName=None, logger=None):
     """
     MatchUnmatch:{userId}:{childCollectionName} store Match or Unmatch in firestore for user
         :param userId: user id
@@ -202,7 +191,7 @@ async def MatchUnmatch_store_match_unmatch_to_redis(docs=None, userId=None, chil
         profileIds = []
         async for doc in docs.stream():
             profileIds.append(doc.id)
-            redisClient.sadd(redisBaseKey, doc.id)
+            redis_client.sadd(redisBaseKey, doc.id)
             logger.info(f"{doc.id} was pushed to stack {redisBaseKey}")
         return profileIds
     except Exception as e:
@@ -211,7 +200,7 @@ async def MatchUnmatch_store_match_unmatch_to_redis(docs=None, userId=None, chil
         return []
 
 
-async def MatchUnmatch_fetch_data_from_redis(userId=None, childCollectionName=None, redisClient=None, logger=None):
+async def MatchUnmatch_fetch_data_from_redis(userId=None, childCollectionName=None, logger=None):
     """
     Fetch match unmatch data from redis
         :param userId: user id
@@ -220,7 +209,7 @@ async def MatchUnmatch_fetch_data_from_redis(userId=None, childCollectionName=No
     try:
         redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
         # Redis function 'smembers' will give you the length of set inside redis key
-        profileIds = list(redisClient.smembers(redisBaseKey))
+        profileIds = list(redis_client.smembers(redisBaseKey))
         logger.info(f"Fetched {len(profileIds)} from cache:{redisBaseKey}")
         return profileIds
     except Exception as e:

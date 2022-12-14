@@ -9,16 +9,15 @@ import firebase_admin
 from redis.client import Redis
 from redis.commands.json.path import Path
 from redis.commands.search.query import Query
-from ProjectConf.RedisConf import redisClient, try_creating_fcm_index_for_redis, check_redis_index_exists
+from ProjectConf.RedisConf import redis_client, try_creating_fcm_index_for_redis, check_redis_index_exists
 
 notification_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsUg-k2/view?usp=sharing"
 
-async def Notification_store_fcm_token_in_redis(fcm_data=None, redis_client: Redis = None, logger=None):
+async def Notification_store_fcm_token_in_redis(fcm_data=None, logger=None):
     """
     Store Notifications in Redis Cache.
         - Write/Update current Notification data in Redis
     :param profile: Notification Dict/JSON
-    :param redis_client: Redis: Redis server Client
     :param logger: Current app logger for logging on stdout
 
     :return: Status of store action as Boolean
@@ -34,7 +33,7 @@ async def Notification_store_fcm_token_in_redis(fcm_data=None, redis_client: Red
         logger.exception(e)
         return False
 
-def Notification_fetch_fcm_token_docs_for_userId(user_id=None, redis_client=None, logger=None):
+def Notification_fetch_fcm_token_docs_for_userId(user_id=None, logger=None):
     """
       Returns the fcm tokens for a user id from the redis
         - Creates a redis query
@@ -42,7 +41,6 @@ def Notification_fetch_fcm_token_docs_for_userId(user_id=None, redis_client=None
         - Get the list of fcm token for the userId
         
       param user_id: string
-      param redis_client: Redis
       param logger: Logger
     """
     try:
@@ -66,13 +64,12 @@ def Notification_fetch_fcm_token_docs_for_userId(user_id=None, redis_client=None
         return False
 
 
-def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, deviceId=None, redis_client=None, logger=None):
+def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, deviceId=None, logger=None):
   """Returns the fcm tokens for a user id and device id from the redis
         - Fetch a single FCMToken record using the userId and deviceId
     
     param user_id: string
     param deviceId: string
-    param redis_client: Redis
     param logger: Logger
     
     Raises:
@@ -113,7 +110,6 @@ def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notific
     param apns: firebase_admin.messaging.APNSConfig
     param notification: firebase_admin.messaging.Notification object
     param data: payLoad needed to be delivered to device other than the notification
-    param redis_client: Redis
     param logger: Logger
     pram dry_run: Bool
   """
@@ -137,7 +133,7 @@ def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notific
       return False
 
 
-def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_tokens=None, redis_client=None, logger=None):
+def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_tokens=None, logger=None):
     '''
     Returns the number of failed token in the FCM respones if any
 
@@ -159,7 +155,7 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                   # UNREGISTERED
                   logger.warning(f"UNREGISTERED Deleting expired FCM Token for user {user_id}")
                   # Delete the FCMToken for the user
-                  resp = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx], redis_client=redis_client, logger=logger) 
+                  resp = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx], logger=logger) 
                 
                 elif resp.exception.cause.status_code == 403:
                   # SENDER_ID_MISMATCH
@@ -171,18 +167,18 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                 elif resp.exception.cause.status_code == 429:
                   # QUOTA_EXCEEDED
                   logger.error(f"QUOTA_EXCEEDED for {user_id} {fcm_tokens[idx]}")
-                  Notification_QUOTA_EXCEEDED(user_id=user_id, fcm_token=fcm_tokens[idx], redis_client=redis_client, logger=logger)
+                  Notification_QUOTA_EXCEEDED(user_id=user_id, fcm_token=fcm_tokens[idx], logger=logger)
                   
                 elif resp.exception.cause.status_code == 503:
                   # UNAVAILABLE
                   logger.error(f"UNAVAILABLE {user_id} {fcm_tokens[idx]}")
-                  Notification_UNAVAILABLE(user_id=user_id, fcm_token=fcm_tokens[idx], redis_client=redis_client, logger=logger)
+                  Notification_UNAVAILABLE(user_id=user_id, fcm_token=fcm_tokens[idx], logger=logger)
                 
                 elif resp.exception.cause.status_code == 500:
                   # INTERNAL
                   logger.error(f"INTERNAL error {user_id} {fcm_tokens[idx]}, retry backoff with timeout")
                   logger.error(resp.exception.cause)
-                  Notification_INTENRAL(user_id=user_id, fcm_token=fcm_tokens[idx], redis_client=redis_client, logger=logger)
+                  Notification_INTENRAL(user_id=user_id, fcm_token=fcm_tokens[idx],  logger=logger)
 
                 elif resp.exception.cause.status_code == 401:
                   # THIRD_PARTY_AUTH_ERROR
@@ -201,14 +197,13 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
       logger.exception(e)
       return False
 
-def Notification_design_and_multicast(user_id=None, pay_load=None, redis_client=None,logger=None, dry_run=True):
+def Notification_design_and_multicast(user_id=None, pay_load=None, logger=None, dry_run=True):
     """ Sends multicast notification to all devices of a userId
 
     Args:
       user_id: String of userId
       pay_load: Payload for notification. This paload consist of many attributes which are used
       to build the notification itself
-      redis_client: Redis 
       logger: logger
       dry_run: Will not send multicast notification if set True; Default is True
     Returns:
@@ -224,7 +219,7 @@ def Notification_design_and_multicast(user_id=None, pay_load=None, redis_client=
     apns = firebase_admin.messaging.APNSConfig(fcm_options=fcm_options, payload=payload)
 
     # Logic to send notifications
-    fcm_token_docs = Notification_fetch_fcm_token_docs_for_userId(user_id=user_id, redis_client=redis_client, logger=logger)
+    fcm_token_docs = Notification_fetch_fcm_token_docs_for_userId(user_id=user_id,  logger=logger)
     fcm_tokens = Notification_get_fcm_tokens_from_redis_docs(fcm_token_docs=fcm_token_docs)
     if len(fcm_tokens) == 0:
         logger.error(f"No DeviceId and FCMToken record found for the userid {user_id}")
@@ -237,12 +232,11 @@ def Notification_design_and_multicast(user_id=None, pay_load=None, redis_client=
                                             logger=logger,
                                             dry_run=dry_run)
     failed_tokens = Notification_failed_tokens(user_id=user_id, pay_load=None, response=response, 
-                                    redis_client=redis_client, 
                                     fcm_tokens=fcm_tokens, 
                                     logger=logger)
     return response
 
-def Notification_delete_fcm_token(user_id=None, fcm_token=None, redis_client=None, logger=None):
+def Notification_delete_fcm_token(user_id=None, fcm_token=None, logger=None):
   """Deletes FCMToken from redis and firestore
   Delete FCM Token record from redis
   Deletes the record from firestore
@@ -260,7 +254,7 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None, redis_client=Non
     logger.exception(f"Unable to delete FCMToken {user_id} {fcm_token}")
     return False
   
-def Notificatoin_exponential_back_off(user_id=None, fcm_token=None, redis_client=None, logger=None):
+def Notificatoin_exponential_back_off(user_id=None, fcm_token=None, logger=None):
     """The Notificaton exponential back off should honour all google policies around FCM
     https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
 
@@ -268,12 +262,11 @@ def Notificatoin_exponential_back_off(user_id=None, fcm_token=None, redis_client
 
     param user_id
     param fcm_token
-    param redis_client
     param logger
     """
     return 
 
-def Notification_UNAVAILABLE(user_id=None, fcm_token=None, redis_client=None, logger=None):
+def Notification_UNAVAILABLE(user_id=None, fcm_token=None,  logger=None):
     """The server couldn't process the request in time. Retry the same request, but you must:
     TODO Honor the Retry-After header if it is included in the response from the FCM Connection Server.
     TODO Implement exponential back-off in your retry
@@ -281,7 +274,7 @@ def Notification_UNAVAILABLE(user_id=None, fcm_token=None, redis_client=None, lo
     """
     return 
 
-def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, redis_client=None, logger=None):
+def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, logger=None):
   """QUOTA_EXCEEDED: This error can be caused by exceeded message rate quota, exceeded device message rate quota, or exceeded topic message rate quota.
     TODO Handle Message rate exceeded - Decrease the message rate overall
       Createa global message variable using which we can throttle the speed of sending all notifications
@@ -293,18 +286,16 @@ def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, redis_client=None,
 
     param user_id
     param fcm_token
-    param redis_client
     param logger
   """
   return 
 
-def Notification_INTENRAL(user_id=None, fcm_token=None, redis_client=None, logger=None):
+def Notification_INTENRAL(user_id=None, fcm_token=None, logger=None):
   """INTENRAL: 
     TODO Retry the same request following request and Honor the Retry-After(Timeout)
     
     param user_id
     param fcm_token
-    param redis_client
     param logger
   """
   return

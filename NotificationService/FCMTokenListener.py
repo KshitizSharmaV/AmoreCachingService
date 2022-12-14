@@ -16,7 +16,6 @@ from ProjectConf.FirestoreConf import db, async_db
 from ProjectConf.AsyncioPlugin import run_coroutine
 from google.cloud import firestore
 from Gateways.NotificationGateway import Notification_store_fcm_token_in_redis
-from ProjectConf.RedisConf import redisClient
 
 # Log Settings
 LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
@@ -48,7 +47,7 @@ def fcm_token_update_handler(user_id=None):
             print(type(fcm_data))
 
             # If the record already exists the record will be overwritten
-            future = run_coroutine(Notification_store_fcm_token_in_redis(fcm_data=fcm_data, redis_client=redisClient, logger=logger))
+            future = run_coroutine(Notification_store_fcm_token_in_redis(fcm_data=fcm_data, logger=logger))
             result = future.result()
         # Set the wasUpdated = False, because we processed the change
         db.collection("FCMTokens").document(user_id).update({'wasUpdated':False})
