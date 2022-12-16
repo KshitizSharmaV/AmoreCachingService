@@ -66,7 +66,7 @@ def try_creating_fcm_index_for_redis():
     """Create a index for FCMTokens in redis for querying
     """
     try:
-        redis_client.ft("idx:FCMTokens").create_index(fcm_schema, definition=profile_index_def)
+        redis_client.ft("idx:FCMTokens").create_index(fcm_schema, definition=fcm_index_def)
         print("Index for FCMTokens created")
     except ResponseError:
         print("Index already exists for FCM Tokens")

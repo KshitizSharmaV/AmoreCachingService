@@ -6,12 +6,13 @@ from Utilities.DictOps import flatten_dict_str, decode_with_type_casting, remove
 
 import json
 import firebase_admin
+from firebase_admin import messaging
 from redis.client import Redis
 from redis.commands.json.path import Path
 from redis.commands.search.query import Query
 from ProjectConf.RedisConf import redis_client, try_creating_fcm_index_for_redis, check_redis_index_exists
 
-notification_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsUg-k2/view?usp=sharing"
+amoreicon_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsUg-k2/view?usp=sharing"
 
 async def Notification_store_fcm_token_in_redis(fcm_data=None, logger=None):
     """
@@ -23,10 +24,14 @@ async def Notification_store_fcm_token_in_redis(fcm_data=None, logger=None):
     :return: Status of store action as Boolean
     """
     try:
-        key = f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']}"
-        redis_client.json().set(key, Path.root_path(), fcm_data)
-        logger.info(f"Notification stored/updated in cache with key: {key}")
-        return True
+      # Check if the index already exists for redis
+      if not check_redis_index_exists(index="idx:FCMTokens"):
+        try_creating_fcm_index_for_redis()
+
+      key = f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']}"
+      redis_client.json().set(key, Path.root_path(), fcm_data)
+      logger.info(f"Notification stored/updated in cache with key: {key}")
+      return True
     except Exception as e:
         logger.exception(f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']} unable to store fcm token")
         logger.exception(f"{fcm_data}")
@@ -212,6 +217,7 @@ def Notification_design_and_multicast(user_id=None, pay_load=None, logger=None, 
     # Title and body of notification
     notification = firebase_admin.messaging.Notification(title=pay_load['title'], body=pay_load['body'])
     # Firestore analytical label and notification image
+    notification_image = pay_load['notification_image'] if pay_load['notification_image'] else amoreicon_image
     fcm_options = firebase_admin.messaging.APNSFCMOptions(analytics_label=pay_load['analytics_label'], image=notification_image)
     # Badge Count and Notification Category
     aps = firebase_admin.messaging.Aps(badge=pay_load['badge_count'], category=pay_load['aps_category'])
