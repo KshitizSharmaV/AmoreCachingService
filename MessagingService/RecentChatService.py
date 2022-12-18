@@ -8,12 +8,12 @@ import os
 import threading
 import time
 import logging
-from time import strftime
+import asyncio
 from datetime import datetime
 from dataclasses import asdict, dataclass
 from logging.handlers import TimedRotatingFileHandler
-from ProjectConf.FirestoreConf import db, async_db
-from google.cloud import firestore
+from ProjectConf.FirestoreConf import db
+from ProjectConf.AsyncioPlugin import run_coroutine
 from MessagingService.Helper import *
 from Gateways.NotificationGateway import Notification_design_and_multicast
 from Gateways.GeoserviceGateway import GeoService_get_fitered_profiles_on_params
@@ -29,7 +29,7 @@ logger = logging.getLogger(f'Logs/MessagingService/{LOG_FILENAME}')
 logger.addHandler(logHandler)
 logger.setLevel(logging.INFO)
 
-def send_message_notification(chat_data_for_other_user=None):
+async def send_message_notification(chat_data_for_other_user=None):
 
     date_str = datetime.today().strftime('%Y%m%d')
     pay_load = {
@@ -41,12 +41,11 @@ def send_message_notification(chat_data_for_other_user=None):
         'aps_category':'Message',
         'data':{'data':'none'}
     }
-    Notification_design_and_multicast(user_id=chat_data_for_other_user.toId, 
-                                    pay_load=pay_load, 
-                                    logger=logger,
+    await Notification_design_and_multicast(user_id=chat_data_for_other_user.toId, 
+                                    pay_load=pay_load, logger=logger,
                                     dry_run=False)
 
-def message_update_handler(given_user_id=None, other_user_id=None, chat_data_for_other_user=None):
+async def message_update_handler(given_user_id=None, other_user_id=None, chat_data_for_other_user=None):
     try:
         new_messages = db.collection("Messages").document(given_user_id).collection(other_user_id).where(u'otherUserUpdated', u'==', False).stream()
         for message in new_messages:
@@ -56,7 +55,8 @@ def message_update_handler(given_user_id=None, other_user_id=None, chat_data_for
             db.collection("Messages").document(given_user_id).collection(other_user_id).document(message.id).update({'otherUserUpdated':True})
             
             # Send notification to the the device and user id
-            send_message_notification(chat_data_for_other_user=chat_data_for_other_user)
+            task = asyncio.create_task(send_message_notification(chat_data_for_other_user=chat_data_for_other_user))
+            return asyncio.gather(*[task])
         logger.info(f'{given_user_id} & {other_user_id}: written to message collection')
         return
     except Exception as e:
@@ -93,9 +93,10 @@ def recent_chat_update_handler(given_user_id=None):
             logger.info(f'RecentChats updated for {other_user_id}')
             # set the otherUserUpdated = True for given user, because we have processed this new recent chat
             db.collection("RecentChats").document(given_user_id).collection("Messages").document(other_user_id).update({'otherUserUpdated':True})
-            message_update_handler(given_user_id=given_user_id, 
+            future = run_coroutine(message_update_handler(given_user_id=given_user_id, 
                                     other_user_id=other_user_id, 
-                                    chat_data_for_other_user=chat_data_for_other_user)
+                                    chat_data_for_other_user=chat_data_for_other_user))
+            future.result()
         # set the wasUpdated = False, because we processed the change
         db.collection("RecentChats").document(given_user_id).update({'wasUpdated':False})
         return

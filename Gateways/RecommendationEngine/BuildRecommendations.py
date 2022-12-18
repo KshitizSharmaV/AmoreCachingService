@@ -51,6 +51,7 @@ class RecommendationSystem:
         try:
             self.current_user_data = self.profiles_fetcher.fetch_current_user_data()
             self.profiles_fetcher.fetch_profile_ids_already_seen_by_user()
+            # Brings all the profiles which are not seen by the user
             self.other_users_data = self.profiles_fetcher.get_final_fetched_profiles()
         except Exception as e:
             self.logger.exception(e)

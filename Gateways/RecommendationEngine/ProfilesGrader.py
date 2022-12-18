@@ -7,7 +7,7 @@ from google.cloud import firestore
 from redis import Redis
 from logging import Logger
 from ProjectConf.FirestoreConf import async_db
-from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_fetch_userdata_from_firebase_or_redis
+from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
 
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher

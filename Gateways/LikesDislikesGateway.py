@@ -7,7 +7,7 @@ from ProjectConf.FirestoreConf import async_db
 
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.FirestoreConf import async_db, db
-from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_check_match_between_users
+from Gateways.MatchUnmatchGateway import MatchUnmatch_check_match_between_users
 from Gateways.LikesDislikesGatewayEXT import LikesDislikes_fetch_userdata_from_firebase_or_redis, \
     LikesDislikes_async_store_swipe_task
 

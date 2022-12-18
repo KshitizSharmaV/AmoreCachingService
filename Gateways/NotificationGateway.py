@@ -195,14 +195,14 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                   logger.error(f"UNSPECIFIED_ERROR {user_id} {fcm_tokens[idx]}.")
 
                 failed_tokens.append(fcm_tokens[idx])
-        logger.info('Notification failed for {0} tokens'.format(failed_tokens.count()))
+        logger.info('Notification failed for {0} tokens'.format(len(failed_tokens)))
       return failed_tokens
     except Exception as e:
       logger.exception(f"Unable to analyze the multicast response {response}")
       logger.exception(e)
       return False
 
-def Notification_design_and_multicast(user_id=None, pay_load=None, logger=None, dry_run=True):
+async def Notification_design_and_multicast(user_id=None, pay_load=None, logger=None, dry_run=True):
     """ Sends multicast notification to all devices of a userId
 
     Args:
@@ -252,8 +252,9 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None, logger=None):
   : pram logger
   """
   try:
-    logger.info("Deleting FCMToken {user_id} {fcm_token}")
+    logger.info(f"Deleting FCMToken for {user_id}")
     #TODO Deletes FCM Token record from redis
+    
     #TODO Deletes the record from firestore
 
   except Exception as e:

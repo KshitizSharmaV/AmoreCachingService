@@ -197,6 +197,9 @@ class ProfilesFetcher:
             self.logger.error(traceback.format_exc())
 
     def get_final_fetched_profiles(self) -> dict:
+        """
+        Getting the recommendations for the user
+        """
         try:
             self.add_geohash_filter_for_radius_for_query()
             final_fetched_profiles = self.fetch_filtered_profiles_for_user()
