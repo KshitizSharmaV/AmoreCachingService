@@ -1,16 +1,12 @@
 from __future__ import annotations
-from dataclasses import asdict, dataclass, fields, field
-from typing import get_type_hints
-from pprint import pprint
-from Utilities.DictOps import flatten_dict_str, decode_with_type_casting, remove_payload_key
-
 import json
+import time
 import firebase_admin
-from firebase_admin import messaging
-from redis.client import Redis
 from redis.commands.json.path import Path
 from redis.commands.search.query import Query
 from ProjectConf.RedisConf import redis_client, try_creating_fcm_index_for_redis, check_redis_index_exists
+from ProjectConf.FirestoreConf import db
+from tenacity import Retrying, RetryError, stop_after_attempt, wait_exponential
 
 amoreicon_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsUg-k2/view?usp=sharing"
 
@@ -155,7 +151,8 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
             if not resp.success:
                 # The order of responses corresponds to the order of the registration tokens.
                 # Error Codes List: https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
-              
+                retry_after_delay = resp.getheader("Retry-After")
+                
                 if resp.exception.cause.status_code == 404:
                   # UNREGISTERED
                   logger.warning(f"UNREGISTERED Deleting expired FCM Token for user {user_id}")
@@ -172,18 +169,18 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                 elif resp.exception.cause.status_code == 429:
                   # QUOTA_EXCEEDED
                   logger.error(f"QUOTA_EXCEEDED for {user_id} {fcm_tokens[idx]}")
-                  Notification_QUOTA_EXCEEDED(user_id=user_id, fcm_token=fcm_tokens[idx], logger=logger)
+                  Notification_QUOTA_EXCEEDED(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay, logger=logger)
                   
                 elif resp.exception.cause.status_code == 503:
                   # UNAVAILABLE
                   logger.error(f"UNAVAILABLE {user_id} {fcm_tokens[idx]}")
-                  Notification_UNAVAILABLE(user_id=user_id, fcm_token=fcm_tokens[idx], logger=logger)
+                  Notification_UNAVAILABLE(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay, logger=logger)
                 
                 elif resp.exception.cause.status_code == 500:
                   # INTERNAL
                   logger.error(f"INTERNAL error {user_id} {fcm_tokens[idx]}, retry backoff with timeout")
                   logger.error(resp.exception.cause)
-                  Notification_INTENRAL(user_id=user_id, fcm_token=fcm_tokens[idx],  logger=logger)
+                  Notification_INTENRAL(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay, logger=logger)
 
                 elif resp.exception.cause.status_code == 401:
                   # THIRD_PARTY_AUTH_ERROR
@@ -254,14 +251,22 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None, logger=None):
   try:
     logger.info(f"Deleting FCMToken for {user_id}")
     #TODO Deletes FCM Token record from redis
-    
+    fcm_redis_query = f"@fcmToken:{fcm_token}"
+    fcm_token_docs = redis_client.ft("idx:FCMTokens").search(Query(query_string=fcm_redis_query))
+    for token_doc in fcm_token_docs:
+      token_doc = json.loads(token_doc.json)
+      key = f"FCMTokens:{token_doc['userId']}:{token_doc['deviceId']}"
+      redis_client.json().forget(key)
     #TODO Deletes the record from firestore
+    doc_ref = db.collection('FCMTokens').document(user_id).collection('Devices').where(u'fcmToken', '==', fcm_token).get()
+    for doc in doc_ref:
+      db.delete(doc)
 
   except Exception as e:
     logger.exception(f"Unable to delete FCMToken {user_id} {fcm_token}")
     return False
   
-def Notificatoin_exponential_back_off(user_id=None, fcm_token=None, logger=None):
+def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
     """The Notificaton exponential back off should honour all google policies around FCM
     https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
 
@@ -271,17 +276,24 @@ def Notificatoin_exponential_back_off(user_id=None, fcm_token=None, logger=None)
     param fcm_token
     param logger
     """
-    return 
+    try:
+      default_delay = 0.2 # delay between two different messages in the pipeline
+      time.sleep(default_delay)
+      retryer = Retrying(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=retry_after_delay, max=5), reraise=True)
+      return
+    except RetryError:
+      return
 
-def Notification_UNAVAILABLE(user_id=None, fcm_token=None,  logger=None):
+def Notification_UNAVAILABLE(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
     """The server couldn't process the request in time. Retry the same request, but you must:
     TODO Honor the Retry-After header if it is included in the response from the FCM Connection Server.
     TODO Implement exponential back-off in your retry
     TODO Delay next message independently by an additional random amount to avoid issuing a new request for all messages at the same time.
     """
+    Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay, logger=logger)
     return 
 
-def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, logger=None):
+def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
   """QUOTA_EXCEEDED: This error can be caused by exceeded message rate quota, exceeded device message rate quota, or exceeded topic message rate quota.
     TODO Handle Message rate exceeded - Decrease the message rate overall
       Createa global message variable using which we can throttle the speed of sending all notifications
@@ -295,9 +307,11 @@ def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, logger=None):
     param fcm_token
     param logger
   """
+  time.sleep(10)
+  Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay, logger=logger)
   return 
 
-def Notification_INTENRAL(user_id=None, fcm_token=None, logger=None):
+def Notification_INTENRAL(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
   """INTENRAL: 
     TODO Retry the same request following request and Honor the Retry-After(Timeout)
     
@@ -305,6 +319,7 @@ def Notification_INTENRAL(user_id=None, fcm_token=None, logger=None):
     param fcm_token
     param logger
   """
+  Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay, logger=logger)
   return
 
 def Notification_expire():
