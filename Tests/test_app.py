@@ -1,14 +1,21 @@
-import unittest
+from unittest.mock import patch
+import pytest
 import json
+from app import app
 
-from Tests.test_base import TestBase
 
-class TestApiEndpoints(TestBase):
-    
-    def test_test_route(self):
-        response = self.client.get('/test')
-        data = json.loads(response.get_data())
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(data['status'], True)
-        self.assertEqual(data['service'], 'Amore Caching Service')
+@pytest.fixture
+def client():
+    # Set up the Flask app and test client
+    app.config['TESTING'] = True
+    client = app.test_client()
+    yield client
+        
+
+def test_test_route(client):
+    response = client.get('/test')
+    data = json.loads(response.get_data())
+    assert response.status_code,200
+    assert data['status'], True
+    assert data['service'], 'Amore Caching Service'
 

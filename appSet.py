@@ -98,7 +98,7 @@ def rewind_single_swipe():
             return jsonify(rewinded_dict)
         else:
             current_app.logger.warning(f"Invalid current User ID")
-        return jsonify({'status': 200})
+            return jsonify({'status': 500})
     except Exception as e:
         current_app.logger.exception(f"Unable to rewind swipe by {current_user_id}")
         current_app.logger.exception(e)
@@ -128,7 +128,6 @@ def store_profile():
         response = jsonify({'message': 'An error occured in API /storeProfileInBackendGate'})
         response.status_code = 400
         return response
-
 
 @app_set.route('/reportprofilegate', methods=['POST'])
 def report_profile():
