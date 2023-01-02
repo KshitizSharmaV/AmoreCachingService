@@ -21,30 +21,8 @@ import pandas as pd
 app_set = Blueprint('appSet', __name__)
 logger = logging.getLogger()
 
-
-@current_app.route('/storeprofilegradingscore', methods=['POST'])
-def store_profile_grading_score():
-    try:
-        # Get the json object of the graded profiles
-        normalizedAllProfileScoresDf = request.get_json().get('normalizedAllProfileScoresDf')
-        normalizedAllProfileScoresDf = pd.DataFrame(normalizedAllProfileScoresDf)
-        logger.info("Received new grading scores to be stored to firestore and cache")
-        logger.info(normalizedAllProfileScoresDf)
-        future = run_coroutine(
-                    store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
-                                                    logger=current_app.logger,
-                                                    async_db=async_db))
-        newProfilesCached = future.result()
-        current_app.logger.info(f"Successfully wrote grading scores to firestore/cache")
-        return json.dumps({"status": True})
-    except Exception as e:
-        current_app.logger.error(f"Failed to write grading scores to firestore or cache")
-        current_app.logger.exception(e)
-        return json.dumps({"status": False})
-
-
 # store_likes_dislikes_superlikes store likes, dislikes and superlikes in own user id and other profile being acted on
-@current_app.route('/storelikesdislikesGate', methods=['POST'])
+@app_set.route('/storelikesdislikesGate', methods=['POST'])
 def store_likes_dislikes_superlikes():
     """
     Endpoint to store likes, superlikes, dislikes, liked_by, disliked_by, superliked_by for users
@@ -60,6 +38,8 @@ def store_likes_dislikes_superlikes():
         swipeInfo = request.get_json().get('swipeInfo')
         swipedUserId = request.get_json().get('swipedUserId')
         upgradeLikeToSuperlike = request.get_json().get('upgradeLikeToSuperlike')
+
+        # tupule to check if any request param is None
         future = run_coroutine(LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId,
                                                                                             swipedUserId=swipedUserId,
                                                                                             swipeStatusBetweenUsers=swipeInfo,
@@ -70,13 +50,12 @@ def store_likes_dislikes_superlikes():
         current_app.logger.info(f"Storing {currentUserId} {swipeInfo} on {swipedUserId}")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(
-            f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
+        current_app.logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
         current_app.logger.exception(e)
-        return False
+        jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
-@current_app.route('/unmatchgate', methods=['POST'])
+@app_set.route('/unmatchgate', methods=['POST'])
 def unmatch():
     try:
         current_user_id = request.get_json().get('current_user_id')
@@ -92,7 +71,7 @@ def unmatch():
         current_app.logger.exception(e)
 
 
-@current_app.route('/rewindsingleswipegate', methods=['POST'])
+@app_set.route('/rewindsingleswipegate', methods=['POST'])
 def rewind_single_swipe():
     """
     Rewind a single swipe:
@@ -125,7 +104,7 @@ def rewind_single_swipe():
         current_app.logger.exception(e)
 
 
-@current_app.route('/storeProfileInBackendGate', methods=['POST'])
+@app_set.route('/storeProfileInBackendGate', methods=['POST'])
 def store_profile():
     """
     Stores Profile in Cache.
@@ -151,7 +130,7 @@ def store_profile():
         return response
 
 
-@current_app.route('/reportprofilegate', methods=['POST'])
+@app_set.route('/reportprofilegate', methods=['POST'])
 def report_profile():
     """
     Report Profile API:
@@ -178,7 +157,7 @@ def report_profile():
         current_app.logger.exception(e)
 
 
-@current_app.route('/matchondirectmessageGate', methods=['POST'])
+@app_set.route('/matchondirectmessageGate', methods=['POST'])
 def match_profiles_on_direct_message():
     """
     Report Profile API:

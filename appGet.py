@@ -20,7 +20,7 @@ logger = logging.getLogger()
 
 
 # Get Profiles using their IDs
-@current_app.route('/getprofilesbyids', methods=['GET'])
+@app_get.route('/getprofilesbyids', methods=['GET'])
 def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
@@ -35,7 +35,7 @@ def get_profiles_by_ids():
         flask.abort(401, f'Unable to get profiles by ids :{profileIdList}')
 
 
-@current_app.route('/fetchGeoRecommendationsGate', methods=['POST'])
+@app_get.route('/fetchGeoRecommendationsGate', methods=['POST'])
 def fetch_geo_recommendations():
     """
     Fetch recommendations based on filters and location
@@ -75,7 +75,7 @@ def fetch_geo_recommendations():
 
 
 # Get LikesDislikes for Super Likes, Received view
-@current_app.route('/getlikesdislikesforuser', methods=['GET'])
+@app_get.route('/getlikesdislikesforuser', methods=['GET'])
 def get_likes_dislikes_for_user_route():
     """
     Returns list of Profile IDs for the given type of CollectionName(Given, Received)
@@ -117,7 +117,7 @@ def get_likes_dislikes_for_user_route():
 
 
 # Profiles already seen by current_user -> list of profile ids
-@current_app.route('/getprofilesalreadyseen', methods=['GET'])
+@app_get.route('/getprofilesalreadyseen', methods=['GET'])
 def get_profiles_already_seen_by_user_route():
     '''
     Get profiles already seen by user
@@ -136,7 +136,7 @@ def get_profiles_already_seen_by_user_route():
         return json.dumps({'status': False})
 
 
-@current_app.route('/loadmatchesunmatchesgate', methods=['POST'])
+@app_get.route('/loadmatchesunmatchesgate', methods=['POST'])
 def load_match_unmatch_profiles():
     """
     Store match unmatch profiles for user in redi

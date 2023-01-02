@@ -61,7 +61,7 @@ async def LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUs
     except Exception as e:
         logger.error(f"Failed to store the async likesdislikes swipe in firestore/redis")
         logger.exception(e)
-        return []
+        return False
 
 
 async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, childCollectionName=None,logger=None):

@@ -8,14 +8,14 @@ import logging.config
 import os
 from logging.handlers import TimedRotatingFileHandler
 import json
-# from bson import json_util
 import asyncio
+from appGet import app_get
+from appSet import app_set
 
 app = Flask(__name__)
 
-with app.app_context():
-    from appGet import app_get
-    from appSet import app_set
+app.register_blueprint(app_get)
+app.register_blueprint(app_set)
 
 @app.before_first_request
 def setup_logging():
@@ -37,7 +37,6 @@ def test():
 
 
 if __name__ == '__main__':
-    # app.run(host="0.0.0.0", debug=True)
     app.run(host="127.0.0.1", port=5050, debug=True)
     app.logger.info("Starting Caching Service")
 
