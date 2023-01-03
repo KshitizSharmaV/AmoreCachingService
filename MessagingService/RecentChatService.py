@@ -8,17 +8,18 @@ import os
 import threading
 import time
 import logging
-from time import strftime
+import asyncio
 from datetime import datetime
 from dataclasses import asdict, dataclass
 from logging.handlers import TimedRotatingFileHandler
-from ProjectConf.FirestoreConf import db, async_db
-from google.cloud import firestore
+from ProjectConf.FirestoreConf import db
+from ProjectConf.AsyncioPlugin import run_coroutine
 from MessagingService.Helper import *
-
+from Gateways.NotificationGateway import Notification_design_and_multicast
+from Gateways.GeoserviceGateway import GeoService_get_fitered_profiles_on_params
 
 # Log Settings
-LOG_FILENAME = datetime.now().strftime("%H_%M_%d_%m_%Y")+".log"
+LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
 if not os.path.exists('Logs/MessagingService/'):
     os.makedirs('Logs/MessagingService/')
 logHandler = TimedRotatingFileHandler(f"Logs/MessagingService/{LOG_FILENAME}",when="midnight")
@@ -28,8 +29,23 @@ logger = logging.getLogger(f'Logs/MessagingService/{LOG_FILENAME}')
 logger.addHandler(logHandler)
 logger.setLevel(logging.INFO)
 
+async def send_message_notification(chat_data_for_other_user=None):
 
-def message_update_handler(given_user_id, other_user_id):
+    date_str = datetime.today().strftime('%Y%m%d')
+    pay_load = {
+        'title':chat_data_for_other_user.user.firstName,
+        'body':chat_data_for_other_user.lastText,
+        'analytics_label': "Message" + date_str,
+        'badge_count':1,
+        'notification_image':chat_data_for_other_user.user.image1['imageURL'],
+        'aps_category':'Message',
+        'data':{'data':'none'}
+    }
+    await Notification_design_and_multicast(user_id=chat_data_for_other_user.toId, 
+                                    pay_load=pay_load, logger=logger,
+                                    dry_run=False)
+
+async def message_update_handler(given_user_id=None, other_user_id=None, chat_data_for_other_user=None):
     try:
         new_messages = db.collection("Messages").document(given_user_id).collection(other_user_id).where(u'otherUserUpdated', u'==', False).stream()
         for message in new_messages:
@@ -37,6 +53,10 @@ def message_update_handler(given_user_id, other_user_id):
             message_data.otherUserUpdated = True
             db.collection("Messages").document(other_user_id).collection(given_user_id).add(asdict(message_data))
             db.collection("Messages").document(given_user_id).collection(other_user_id).document(message.id).update({'otherUserUpdated':True})
+            
+            # Send notification to the the device and user id
+            task = asyncio.create_task(send_message_notification(chat_data_for_other_user=chat_data_for_other_user))
+            return asyncio.gather(*[task])
         logger.info(f'{given_user_id} & {other_user_id}: written to message collection')
         return
     except Exception as e:
@@ -50,7 +70,6 @@ def recent_chat_update_handler(given_user_id=None):
     try:
         # we fetch only the new recent chats by Checking if otherUserUpdated is not True
         new_recent_chats = db.collection("RecentChats").document(given_user_id).collection("Messages").where(u'otherUserUpdated', u'==', False).stream()
-        logger.info(f'Itering over UserIds where otherUserUpdated == False')
         for chat in new_recent_chats:
             # Get the id of the other user
             other_user_id = chat.id
@@ -58,7 +77,12 @@ def recent_chat_update_handler(given_user_id=None):
             chat_data = chat.to_dict()
             chat_data = ChatConversation.from_dict(chat_data)
             # Get the data for other user whose chat needs to be updated
-            given_user_data =  db.collection("Profiles").document(given_user_id).get().to_dict()
+            profile_list = GeoService_get_fitered_profiles_on_params(profileId=other_user_id, logger=logger)
+            if len(profile_list)==0:
+                # If profile doesn't exist in redis
+                given_user_data =  db.collection("Profiles").document(given_user_id).get().to_dict()
+            else:
+                given_user_data = profile_list.pop()
             given_user_data["id"] = given_user_id
             # Create data for other user's RecentChats
             chat_data_for_other_user = chat_data
@@ -66,11 +90,13 @@ def recent_chat_update_handler(given_user_id=None):
             chat_data_for_other_user.otherUserUpdated = True
             # Update the data for the other user
             db.collection("RecentChats").document(other_user_id).collection("Messages").document(given_user_id).set(asdict(chat_data_for_other_user))
-            logger.info(f'{other_user_id}: successfully(other_user_id) written in RecentChats')
+            logger.info(f'RecentChats updated for {other_user_id}')
             # set the otherUserUpdated = True for given user, because we have processed this new recent chat
             db.collection("RecentChats").document(given_user_id).collection("Messages").document(other_user_id).update({'otherUserUpdated':True})
-            logger.info(f'{given_user_id}: otherUserUpdated(given_user_id) was set as True')
-            message_update_handler(given_user_id=given_user_id, other_user_id=other_user_id)
+            future = run_coroutine(message_update_handler(given_user_id=given_user_id, 
+                                    other_user_id=other_user_id, 
+                                    chat_data_for_other_user=chat_data_for_other_user))
+            future.result()
         # set the wasUpdated = False, because we processed the change
         db.collection("RecentChats").document(given_user_id).update({'wasUpdated':False})
         return

@@ -4,13 +4,12 @@ import json
 from itertools import chain
 import asyncio
 from ProjectConf.AsyncioPlugin import run_coroutine
-from ProjectConf.ReddisConf import redisClient
+from ProjectConf.RedisConf import try_creating_profile_index_for_redis, check_redis_index_exists
 from ProjectConf.FirestoreConf import async_db, db
 from Gateways.GeoserviceGateway import GeoService_get_recommended_profiles_for_user
 from Gateways.LikesDislikesGateway import LikesDislikes_fetch_userdata_from_firebase_or_redis, LikesDislikes_get_profiles_already_seen_by_id
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
-from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_fetch_userdata_from_firebase_or_redis, MatchUnmatch_get_match_unmatch_nomatch_for_user
-from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis, check_redis_index_exists
+from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis, MatchUnmatch_get_match_unmatch_nomatch_for_user
 from Gateways.RecommendationEngine.BuildRecommendations import RecommendationSystem
 
 import logging
@@ -21,12 +20,12 @@ logger = logging.getLogger()
 
 
 # Get Profiles using their IDs
-@current_app.route('/getprofilesbyids', methods=['GET'])
+@app_get.route('/getprofilesbyids', methods=['GET'])
 def get_profiles_by_ids():
     try:
         # Get the list of profile ids from the body
         profileIdList = request.get_json().get('profileIdList')
-        allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=profileIdList,
+        allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=profileIdList,
                                                            logger=current_app.logger, async_db=async_db))
         allProfilesData = allProfilesData.result()
         return json.dumps(allProfilesData, indent=4, sort_keys=True, default=str)
@@ -36,7 +35,7 @@ def get_profiles_by_ids():
         flask.abort(401, f'Unable to get profiles by ids :{profileIdList}')
 
 
-@current_app.route('/fetchGeoRecommendationsGate', methods=['POST'])
+@app_get.route('/fetchGeoRecommendationsGate', methods=['POST'])
 def fetch_geo_recommendations():
     """
     Fetch recommendations based on filters and location
@@ -53,9 +52,10 @@ def fetch_geo_recommendations():
         profilesAlreadyInDeck = request.get_json().get('profilesAlreadyInDeck')
         filterData = request.get_json().get('filterData')
         current_app.logger.warning(f"profilesAlreadyInDeck: {profilesAlreadyInDeck}")
-        recommendation_system = RecommendationSystem(current_user_id=userId, current_user_filters=filterData,
-                                                     profiles_already_in_deck=profilesAlreadyInDeck,
-                                                     redis_client=redisClient, logger=current_app.logger)
+        recommendation_system = RecommendationSystem(current_user_id=userId, 
+                                                    current_user_filters=filterData,
+                                                    profiles_already_in_deck=profilesAlreadyInDeck,
+                                                    logger=current_app.logger)
         profiles_array = recommendation_system.build_recommendations()
         # Check if there are profiles in the array
         if len(profiles_array) > 0:
@@ -75,7 +75,7 @@ def fetch_geo_recommendations():
 
 
 # Get LikesDislikes for Super Likes, Received view
-@current_app.route('/getlikesdislikesforuser', methods=['GET'])
+@app_get.route('/getlikesdislikesforuser', methods=['GET'])
 def get_likes_dislikes_for_user_route():
     """
     Returns list of Profile IDs for the given type of CollectionName(Given, Received)
@@ -91,7 +91,6 @@ def get_likes_dislikes_for_user_route():
         ids_list = run_coroutine(LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=currentUserId,
                                                                     childCollectionName=childCollectionName,
                                                                     swipeStatusBetweenUsers=matchFor,
-                                                                    redisClient=redisClient, 
                                                                     logger=current_app.logger, no_of_last_records=noOfLastRecords))
         ids_list = ids_list.result()
 
@@ -99,14 +98,14 @@ def get_likes_dislikes_for_user_route():
             # Don't show the profiles that user has already swiped from their received list.
             swipe_received_profiles_already_swiped = \
                 run_coroutine(MatchUnmatch_get_match_unmatch_nomatch_for_user(userId=currentUserId,
-                                                                              redisClient=redisClient,
                                                                               logger=current_app.logger))
             swipe_received_profiles_already_swiped = swipe_received_profiles_already_swiped.result()
             ids_list = list(set(ids_list).difference(*swipe_received_profiles_already_swiped))
 
         # Get profile data for ids                                    
-        profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, profileIdList=ids_list,
-                                                                 logger=current_app.logger, async_db=async_db))
+        profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=ids_list,
+                                                                                logger=current_app.logger, 
+                                                                                async_db=async_db))
         profiles_array_future = profiles_array_future.result()
         current_app.logger.info(f"Fetched for {currentUserId} {childCollectionName} {matchFor}: {len(profiles_array_future)}")
         # current_app.logger.info(json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str))
@@ -118,7 +117,7 @@ def get_likes_dislikes_for_user_route():
 
 
 # Profiles already seen by current_user -> list of profile ids
-@current_app.route('/getprofilesalreadyseen', methods=['GET'])
+@app_get.route('/getprofilesalreadyseen', methods=['GET'])
 def get_profiles_already_seen_by_user_route():
     '''
     Get profiles already seen by user
@@ -127,7 +126,6 @@ def get_profiles_already_seen_by_user_route():
         userId = request.get_json().get('currentUserId')
         idsAlreadySeenByUser = run_coroutine(LikesDislikes_get_profiles_already_seen_by_id(userId=userId, 
                                                                             childCollectionName="Given", 
-                                                                            redisClient=redisClient, 
                                                                             logger=current_app.logger)) 
         idsAlreadySeenByUser = idsAlreadySeenByUser.result()                                                    
         current_app.logger.info(f"{len(idsAlreadySeenByUser)} Already seen profiles Ids were fetched from cache")
@@ -138,7 +136,7 @@ def get_profiles_already_seen_by_user_route():
         return json.dumps({'status': False})
 
 
-@current_app.route('/loadmatchesunmatchesgate', methods=['POST'])
+@app_get.route('/loadmatchesunmatchesgate', methods=['POST'])
 def load_match_unmatch_profiles():
     """
     Store match unmatch profiles for user in redi
@@ -152,13 +150,11 @@ def load_match_unmatch_profiles():
         
         ids_list = run_coroutine(MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, 
                                                                                 childCollectionName=fromCollection, 
-                                                                                redisClient=redisClient, 
                                                                                 logger=current_app.logger))
         ids_list = ids_list.result()         
         if len(ids_list) > 0:
             # Get profile data for ids                                    
-            profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(redisClient=redisClient, 
-                                                                    profileIdList=ids_list,
+            profiles_array_future = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=ids_list,
                                                                     logger=current_app.logger, 
                                                                     async_db=async_db))
             profiles_array_future = profiles_array_future.result()

@@ -7,7 +7,7 @@ from ProjectConf.FirestoreConf import async_db
 
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.FirestoreConf import async_db, db
-from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_check_match_between_users
+from Gateways.MatchUnmatchGateway import MatchUnmatch_check_match_between_users
 from Gateways.LikesDislikesGatewayEXT import LikesDislikes_fetch_userdata_from_firebase_or_redis, \
     LikesDislikes_async_store_swipe_task
 
@@ -26,8 +26,9 @@ The data stored with key is a list of ProfileIds who have liked, disliked or sup
 # Store likesdislikes data in firestore: We store this swipe at multiple places which will allows easy logic building
 async def LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=None, swipedUserId=None,
                                                                        swipeStatusBetweenUsers=None,
-                                                                       upgradeLikeToSuperlike=None, async_db=None,
-                                                                       redisClient=None, logger=None):
+                                                                       upgradeLikeToSuperlike=None, 
+                                                                       async_db=None,
+                                                                       logger=None):
     '''
     Store like in Given for user
     Store like in Receiver for profile receiving the swipe 
@@ -43,28 +44,27 @@ async def LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUs
                                                  childCollectionName="Given",
                                                  swipeStatusBetweenUsers=swipeStatusBetweenUsers,
                                                  upgradeLikeToSuperlike=upgradeLikeToSuperlike,
-                                                 redisClient=redisClient, logger=logger))
+                                                 logger=logger))
         # Store recevied swipe task
         task2 = asyncio.create_task(
             LikesDislikes_async_store_swipe_task(firstUserId=swipedUserId, secondUserId=currentUserId,
                                                  childCollectionName="Received",
                                                  swipeStatusBetweenUsers=swipeStatusBetweenUsers,
                                                  upgradeLikeToSuperlike=upgradeLikeToSuperlike,
-                                                 redisClient=redisClient, logger=logger))
+                                                logger=logger))
 
         task3 = asyncio.create_task(MatchUnmatch_check_match_between_users(currentUserId=currentUserId,
                                                                            swipedUserId=swipedUserId,
                                                                            currentUserSwipe=swipeStatusBetweenUsers,
-                                                                           redisClient=redisClient,
                                                                            logger=logger))
         return asyncio.gather(*[task1, task2, task3])
     except Exception as e:
         logger.error(f"Failed to store the async likesdislikes swipe in firestore/redis")
         logger.exception(e)
-        return []
+        return False
 
 
-async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, childCollectionName=None, redisClient=None, logger=None):
+async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, childCollectionName=None,logger=None):
     '''
     Accepts the userId and return a list of profiles already seen by user
     '''
@@ -73,7 +73,6 @@ async def LikesDislikes_get_profiles_already_seen_by_id(userId=None, childCollec
         asyncGetProfiles = await asyncio.gather(*[LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=userId, 
                                                             childCollectionName=childCollectionName, 
                                                             swipeStatusBetweenUsers=swipeInfo,
-                                                            redisClient=redisClient, 
                                                             logger=logger) 
                                                             for swipeInfo in ["Likes","Dislikes","Superlikes"]])
         _ = [idsAlreadySeenByUser.extend(profile) for profile in asyncGetProfiles if profile is not None]

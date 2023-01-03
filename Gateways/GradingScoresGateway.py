@@ -1,11 +1,32 @@
 import time 
 import asyncio 
 import json
+from ProjectConf.RedisConf import redis_client
 
-async def store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=None, redisClient=None, logger=None, async_db=None):
+# @current_app.route('/storeprofilegradingscore', methods=['POST'])
+# def store_profile_grading_score():
+#     try:
+#         # Get the json object of the graded profiles
+#         normalizedAllProfileScoresDf = request.get_json().get('normalizedAllProfileScoresDf')
+#         normalizedAllProfileScoresDf = pd.DataFrame(normalizedAllProfileScoresDf)
+#         logger.info("Received new grading scores to be stored to firestore and cache")
+#         logger.info(normalizedAllProfileScoresDf)
+#         future = run_coroutine(
+#                     store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=normalizedAllProfileScoresDf,
+#                                                     logger=current_app.logger,
+#                                                     async_db=async_db))
+#         newProfilesCached = future.result()
+#         current_app.logger.info(f"Successfully wrote grading scores to firestore/cache")
+#         return json.dumps({"status": True})
+#     except Exception as e:
+#         current_app.logger.error(f"Failed to write grading scores to firestore or cache")
+#         current_app.logger.exception(e)
+#         return json.dumps({"status": False})
+
+
+async def store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=None, logger=None, async_db=None):
     try:
         all_profile_scores_status = await asyncio.gather(*[store_profile_grading_firestore(scoringData=scoringData[1],
-                                                            redisClient=redisClient,
                                                             logger=logger,
                                                             async_db=async_db) for scoringData in normalizedAllProfileScoresDf.iterrows()])
         return True
@@ -14,7 +35,7 @@ async def store_graded_profile_in_firestore_route(normalizedAllProfileScoresDf=N
         logger.exception(e)
 
 
-async def store_profile_grading_firestore(scoringData=None,redisClient=None, logger=None,  async_db=None):
+async def store_profile_grading_firestore(scoringData=None,logger=None,  async_db=None):
     try:
         if scoringData is not None:
             timestamp = time.time()
@@ -33,7 +54,7 @@ async def store_profile_grading_firestore(scoringData=None,redisClient=None, log
             #  store latest grades to the 
             jsonObjectDumps = json.dumps(profileGrade, indent=4, sort_keys=True, default=str)
             # Redis - Create a new document if doesn't already exist in the database
-            redisClient.set(f"GradingScore:{scoringData['profileId']}", jsonObjectDumps)
+            redis_client.set(f"GradingScore:{scoringData['profileId']}", jsonObjectDumps)
             logger.info(f"{scoringData['profileId']}: Profile grades stored successfully in cache and firestore")
         else:
             logger.error(f"Scoring Data is None")

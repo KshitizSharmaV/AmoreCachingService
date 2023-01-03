@@ -4,9 +4,9 @@ import time
 from redis.client import Redis
 from ProjectConf.FirestoreConf import async_db, db
 from logging import Logger
+from ProjectConf.RedisConf import redis_client
 
-def Report_profile_task(current_user_id=None, reported_profile_id=None, reason_given=None, description_given=None,
-                        redisClient: Redis = None):
+def Report_profile_task(current_user_id=None, reported_profile_id=None, reason_given=None, description_given=None):
     """
     Report Profile Task:
         - Finds profile of the reported User from Cache. If not available, fetches from Firestore
@@ -19,11 +19,10 @@ def Report_profile_task(current_user_id=None, reported_profile_id=None, reason_g
     :param reported_profile_id: Reported User's ID
     :param reason_given: Reason given for reporting the profile
     :param description_given: Detailed description for reporting the profile
-    :param redis_client: Redis client instance
-
+    
     :return: Boolean indicating status of storing record in redis
     """
-    redis_query = redisClient.mget(f"Geoservice*{reported_profile_id}").pop()
+    redis_query = redis_client.mget(f"Geoservice*{reported_profile_id}").pop()
     if redis_query:
         reported_profile = json.loads(redis_query)
     else:
@@ -43,7 +42,7 @@ def Report_profile_task(current_user_id=None, reported_profile_id=None, reason_g
     val = f"GeoService:{reported_profile['geohash1']}:{reported_profile['geohash2']}:{reported_profile['geohash3']}:" \
           f"{reported_profile['geohash4']}:{reported_profile['geohash5']}:{reported_profile['geohash']}:" \
           f"{reported_profile['genderIdentity']}:{religion}:{reported_profile['age']}:{reported_profile_id}"
-    report_profile_success = redisClient.set(f"{key}", json.dumps(val))
+    report_profile_success = redis_client.set(f"{key}", json.dumps(val))
 
     #  TODO
     # if already liked, delete the likesdislikes 

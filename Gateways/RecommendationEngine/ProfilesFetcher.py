@@ -14,14 +14,12 @@ from functools import lru_cache
 from dataclasses import asdict
 from Utilities.DictOps import ignore_none
 from ProjectConf.FirestoreConf import db
-from ProjectConf.ReddisConf import redisClient
+from ProjectConf.RedisConf import redis_client, try_creating_profile_index_for_redis, check_redis_index_exists
 from ProjectConf.LoggerConf import logger as logger1
 from redis.commands.search.query import Query
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import QueryBuilder, Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles, Geoservice_calculate_geo_hash_from_radius
 from Gateways.LikesDislikesGateway import LikesDislikes_get_profiles_already_seen_by_id
-from Gateways.GeoserviceEXTs.GeoservicRedisQueryConf import try_creating_profile_index_for_redis, \
-    check_redis_index_exists
 from ProjectConf.AsyncioPlugin import run_coroutine
 
 
@@ -36,19 +34,16 @@ class ProfilesFetcher:
     current_user_id: str
     current_user_filters: dict
     profiles_already_seen: Set[str]
-    redis_client: Redis
     logger: Logger
     geohash_keys: [str]
     current_user_data: dict
 
-    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str],
-                 redis_client: Redis, logger: Logger):
+    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str], logger: Logger):
         self.current_user_id = current_user_id
         self.current_user_filters = current_user_filters
         self.profiles_already_seen = set(profiles_already_in_deck)
         # Exclude own profile from being recommended to self
         self.profiles_already_seen.add(self.current_user_id)
-        self.redis_client = redis_client
         self.logger = logger
         self.geohash_keys = ['geohash1', 'geohash2', 'geohash3', 'geohash4', 'geohash5']
 
@@ -62,11 +57,11 @@ class ProfilesFetcher:
     def fetch_current_user_data(self) -> dict:
         try:
             key = f"profile:{self.current_user_id}"
-            self.current_user_data = asdict(Profile.decode_data_from_redis(self.redis_client.hgetall(key)),
+            self.current_user_data = asdict(Profile.decode_data_from_redis(redis_client.hgetall(key)),
                                             dict_factory=ignore_none)
             if not self.current_user_data:
                 self.current_user_data = self.fetch_current_user_data_from_firestore()
-                asyncio.run(GeoService_store_profiles(profile=self.current_user_data, redisClient=self.redis_client,
+                asyncio.run(GeoService_store_profiles(profile=self.current_user_data,
                                                       logger=self.logger))
             return self.current_user_data
         except Exception as e:
@@ -76,8 +71,7 @@ class ProfilesFetcher:
     def fetch_profile_ids_already_seen_by_user(self) -> [str]:
         try:
             profile_ids_already_swiped_by_user = run_coroutine(
-                LikesDislikes_get_profiles_already_seen_by_id(userId=self.current_user_id, childCollectionName="Given",
-                                                              redisClient=self.redis_client, logger=self.logger))
+                LikesDislikes_get_profiles_already_seen_by_id(userId=self.current_user_id, childCollectionName="Given", logger=self.logger))
             self.profiles_already_seen = self.profiles_already_seen.union(set(profile_ids_already_swiped_by_user.result()))
             return self.profiles_already_seen
         except Exception as e:
@@ -124,7 +118,7 @@ class ProfilesFetcher:
 
     def query_redis_for_profiles(self, query_string: str):
         try:
-            return self.redis_client.ft("idx:profile").search(Query(query_string=query_string).paging(0, 10))
+            return redis_client.ft("idx:profile").search(Query(query_string=query_string).paging(0, 10))
         except Exception as e:
             self.logger.exception(e)
             self.logger.error(traceback.format_exc())
@@ -203,6 +197,9 @@ class ProfilesFetcher:
             self.logger.error(traceback.format_exc())
 
     def get_final_fetched_profiles(self) -> dict:
+        """
+        Getting the recommendations for the user
+        """
         try:
             self.add_geohash_filter_for_radius_for_query()
             final_fetched_profiles = self.fetch_filtered_profiles_for_user()
@@ -234,7 +231,7 @@ if __name__ == "__main__":
     profiles_fetcher = ProfilesFetcher(current_user_id="WbZZuRPhxRf6KL1GFHcNWL2Ydzk1",
                                        current_user_filters={"radiusDistance": 50, "genderPreference": "Male"},
                                        profiles_already_in_deck=[],
-                                       redis_client=redisClient, logger=logger1)
+                                       logger=logger1)
     profiles = profiles_fetcher.get_final_fetched_profiles()
     print(len(profiles))
     # pprint(profiles)
