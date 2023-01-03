@@ -8,7 +8,6 @@ Logs/*
 **/*.ipynb
 **/Logs
 serviceAccountKey.json
-**/ProximityHash
 **/amore_caching_service_venv
 **/idea
 **/__pycache__
