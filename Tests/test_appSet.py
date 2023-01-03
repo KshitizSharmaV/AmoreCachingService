@@ -52,8 +52,6 @@ async def test_rewind_single_swipe(client):
     rewinded_user_info = {'id': swiped_user_id, 'name': 'User 2'}
     rewinded_dict = {'rewindedUserCard': rewinded_user_info, 'swipeStatusBetweenUsers': last_swiped_info}
 
-    print("Hellooooooo")
-
     # Set up the mocks
     with patch('appSet.get_last_given_swipe_from_firestore') as mock_get_last_given_swipe:
         mock_get_last_given_swipe.return_value = (swiped_user_id, last_swiped_info)
@@ -67,7 +65,6 @@ async def test_rewind_single_swipe(client):
                 # Send the request
                 data = {'currentUserID': current_user_id}
                 response = client.post('/rewindsingleswipegate', json=data)
-                print(response)
                 # Check the response
                 assert response.status_code == 200
                 assert response.json == rewinded_dict
