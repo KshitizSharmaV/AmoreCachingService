@@ -3,7 +3,6 @@ from google.cloud import firestore
 import asyncio
 import time
 import json
-from ProjectConf.FirestoreConf import async_db
 
 from ProjectConf.AsyncioPlugin import run_coroutine
 from ProjectConf.FirestoreConf import async_db, db

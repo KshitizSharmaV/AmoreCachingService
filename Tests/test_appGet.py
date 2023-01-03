@@ -22,4 +22,3 @@ async def test_get_profiles_by_ids(client):
         response = client.post('/rewindsingleswipegate', json=data)
         # Check the response
         assert response.status_code == 200
-        

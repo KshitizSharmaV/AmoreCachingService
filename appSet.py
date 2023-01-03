@@ -52,7 +52,7 @@ def store_likes_dislikes_superlikes():
     except Exception as e:
         current_app.logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
         current_app.logger.exception(e)
-        jsonify({'status': 500, 'message': 'Unable to process request'}), 500
+        return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
 @app_set.route('/unmatchgate', methods=['POST'])
@@ -69,6 +69,7 @@ def unmatch():
     except Exception as e:
         current_app.logger.exception(f"Unable to unmatch {current_user_id} and {other_user_id}")
         current_app.logger.exception(e)
+        return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
 @app_set.route('/rewindsingleswipegate', methods=['POST'])
@@ -102,6 +103,7 @@ def rewind_single_swipe():
     except Exception as e:
         current_app.logger.exception(f"Unable to rewind swipe by {current_user_id}")
         current_app.logger.exception(e)
+        return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
 @app_set.route('/storeProfileInBackendGate', methods=['POST'])
@@ -154,6 +156,8 @@ def report_profile():
     except Exception as e:
         current_app.logger.exception(f"Unable to report profile {reported_profile_id}")
         current_app.logger.exception(e)
+        return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
+
 
 
 @app_set.route('/matchondirectmessageGate', methods=['POST'])
@@ -177,3 +181,4 @@ def match_profiles_on_direct_message():
     except Exception as e:
         current_app.logger.exception(f"Unable to match profiles {current_user_id} and {other_user_id}")
         current_app.logger.exception(e)
+        return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
