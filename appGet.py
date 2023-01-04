@@ -133,7 +133,8 @@ def get_profiles_already_seen_by_user_route():
     except Exception as e:
         current_app.logger.error(f"Failed to get the already seen cached profiles ids from gateway")
         current_app.logger.exception(e)
-        return json.dumps({'status': False})
+        flask.abort(401, f'Unable to get profiles already seen for the {userId}')
+        
 
 
 @app_get.route('/loadmatchesunmatchesgate', methods=['POST'])
