@@ -51,11 +51,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Install Google Auth Plugin
-      env:
-        USE_GKE_GCLOUD_AUTH_PLUGIN: True
-      run: |-
-          gcloud components install gke-gcloud-auth-plugin
+    - id: 'get-credentials'
+      uses: 'google-github-actions/get-gke-credentials@v1'
+      with:
+        cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
 
     - name: kubectl - Google Cloud GKE cluster.
       uses: ameydev/gke-kubectl-action@master
