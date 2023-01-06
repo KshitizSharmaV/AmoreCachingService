@@ -58,6 +58,7 @@ jobs:
       uses: 'google-github-actions/setup-gcloud@v0'
       with:
           install_components: 'gke-gcloud-auth-plugin'
+          export_default_credentials: true
 
     - name: 'get-credentials'
       uses: 'google-github-actions/get-gke-credentials@v1'
