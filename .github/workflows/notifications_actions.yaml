@@ -47,15 +47,23 @@ jobs:
   deploy-to-gke:
     needs: build-push-gcr
     runs-on: ubuntu-latest
+    env: 
+      USE_GKE_GCLOUD_AUTH_PLUGIN: true
+
     steps:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - id: 'get-credentials'
+    - name: 'Set up Cloud SDK'
+      uses: 'google-github-actions/setup-gcloud@v0'
+      with:
+          install_components: 'gke-gcloud-auth-plugin'
+
+    - name: 'get-credentials'
       uses: 'google-github-actions/get-gke-credentials@v1'
       with:
         cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
-        location: ${{ secrets.ZONE_NAME }}
+        location: 'us-central1'
         project_id: ${{ secrets.PROJECT_ID }}
 
     - name: kubectl - Google Cloud GKE cluster.
