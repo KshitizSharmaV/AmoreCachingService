@@ -57,6 +57,7 @@ jobs:
         cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
         location: 'us-central1'
         project_id: ${{ secrets.PROJECT_ID }}
+        use_auth_provider: true
 
     - name: kubectl - Google Cloud GKE cluster.
       uses: ameydev/gke-kubectl-action@master
