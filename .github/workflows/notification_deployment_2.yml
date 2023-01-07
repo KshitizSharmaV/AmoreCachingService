@@ -48,8 +48,8 @@ jobs:
     
     - name: 'Install gke-gcloud-auth-plugin'
       run: |
-        sudo apt-get update
-        sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+        export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+        gcloud components install gke-gcloud-auth-plugin
       shell: bash
 
 #     - name: Build Docker Image
