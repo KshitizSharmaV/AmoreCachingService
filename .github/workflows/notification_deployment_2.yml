@@ -53,8 +53,8 @@ jobs:
       with:
         credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
 
-    - name: 'Install gke-gcloud-auth-plugin'
-      run: 'gcloud components install gke-gcloud-auth-plugin'
+#     - name: 'Install gke-gcloud-auth-plugin'
+#       run: 'gcloud components install gke-gcloud-auth-plugin'
 
 #     - name: Docker configuration
 #       run: |-
