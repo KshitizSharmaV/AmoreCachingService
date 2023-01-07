@@ -23,6 +23,7 @@ env:
   DEPLOYMENT_NAME: NotificationService/deployment.yaml
   REPOSITORY: us-central1-docker.pkg.dev 
   IMAGE: notification
+  USE_GKE_GCLOUD_AUTH_PLUGIN: true
 
 jobs:
   setup-build-publish-deploy:
