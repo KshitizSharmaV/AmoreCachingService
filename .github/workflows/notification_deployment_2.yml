@@ -58,7 +58,7 @@ jobs:
 #         echo ${{steps.auth.outputs.access_token}} | docker login -u oauth2accesstoken --password-stdin https://$GAR_LOCATION-docker.pkg.dev
     
     - name: Build Docker Image
-      run: docker build -t $IMAGE_NAME:latest -f Dockerfile_Notifications .
+      run: docker build -t $IMAGE:latest -f Dockerfile_Notifications .
 
     - name: Configure Docker Client
       run: |-
@@ -69,8 +69,8 @@ jobs:
       env:
         GIT_TAG: latest
       run: |-
-        docker tag $IMAGE_NAME:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE_NAME:latest
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE_NAME:latest
+        docker tag $IMAGE:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
 
     
     # Get the GKE credentials so we can deploy to the cluster
