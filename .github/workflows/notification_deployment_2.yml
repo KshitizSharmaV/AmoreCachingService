@@ -52,7 +52,7 @@ jobs:
        sudo apt update
        sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin kubectl
        export USE_GKE_GCLOUD_AUTH_PLUGIN=True
-       gcloud container clusters get-credentials $GKE_ZONE
+       gcloud container clusters get-credentials $GKE_CLUSTER --region $GAR_LOCATION
     
 #     - name: 
 #       run: 'gcloud components install gke-gcloud-auth-plugin'
