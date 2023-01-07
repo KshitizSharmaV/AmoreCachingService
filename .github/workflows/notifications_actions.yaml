@@ -12,17 +12,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
+      # google/cloud-sdk-action action is used to authenticate with Google Cloud Platform (GCP) using a service account key. 
+      # It does not install the Cloud SDK, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.
+      - name: Authenticate with GCP
+        uses: google/cloud-sdk-action@v1
         with:
           credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
+      
+      # google-github-actions/auth action is used to authenticate with Google Cloud Platform (GCP) using a service account key. 
+      # google-github-actions/auth action is used to authenticate with Google Cloud Platform (GCP) using a service account key. It does not install the Cloud SDK or any other tools, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.It does not install the Cloud SDK or any other tools, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.
+      # # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
+      # # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
+      # - id: 'auth'
+      #   uses: 'google-github-actions/auth@v0'
+      #   with:
+      #     credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
 
+      # google-github-actions/setup-gcloud action is used to install and set up the Google Cloud SDK in a GitHub Actions workflow. 
+      # It can be used to install a specific version of the Cloud SDK, and to specify which components of the Cloud SDK should be installed.
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v0'
 
       - name: 'Use gcloud CLI'
         run: 'gcloud info'
+
+      - name: Install gke-gcloud-auth-plugin
+        run: 'gcloud components install gke-gcloud-auth-plugin'
+
 
       - name: Build Docker Image
         run: docker build -t $IMAGE_NAME:latest -f Dockerfile_Notifications .
