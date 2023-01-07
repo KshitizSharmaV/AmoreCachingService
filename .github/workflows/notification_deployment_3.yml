@@ -1,4 +1,4 @@
-name: Build and Deploy to GKE
+name: NotificationV3
 
 on:
   workflow_dispatch:
