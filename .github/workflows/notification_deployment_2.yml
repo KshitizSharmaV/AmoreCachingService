@@ -10,7 +10,7 @@
 #
 # For more support on how to run the workflow, please visit https://github.com/google-github-actions/setup-gcloud/tree/master/example-workflows/gke-kustomize
 
-name: NotificationV2 Deploy
+name: Build and Deploy to GKE
 
 on:
   workflow_dispatch:
@@ -38,16 +38,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # Configure Workload Identity Federation and generate an access token.
-#     - id: 'auth'
-#       name: 'Authenticate to Google Cloud'
-#       uses: 'google-github-actions/auth@v0'
-#       with:
-#         token_format: 'access_token'
-#         workload_identity_provider: 'projects/123456789/locations/global/workloadIdentityPools/my-pool/providers/my-provider'
-#         service_account: 'my-service-account@my-project.iam.gserviceaccount.com'
-
-    # Alternative option - authentication via credentials json
     - id: 'auth'
       uses: 'google-github-actions/auth@v0'
       with:
@@ -55,26 +45,21 @@ jobs:
 
 #     - name: 'Install gke-gcloud-auth-plugin'
 #       run: 'gcloud components install gke-gcloud-auth-plugin'
-
-#     - name: Docker configuration
-#       run: |-
-#         echo ${{steps.auth.outputs.access_token}} | docker login -u oauth2accesstoken --password-stdin https://$GAR_LOCATION-docker.pkg.dev
     
-    - name: Build Docker Image
-      run: docker build -t $IMAGE:latest -f Dockerfile_Notifications .
+#     - name: Build Docker Image
+#       run: docker build -t $IMAGE:latest -f Dockerfile_Notifications .
 
     - name: Configure Docker Client
       run: |-
         gcloud auth configure-docker --quiet
         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
     - name: Push Docker Image to Artifact Registry
       env:
         GIT_TAG: latest
       run: |-
         docker tag $IMAGE:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
         docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
-
+        
     - id: 'auth2'
       uses: 'google-github-actions/auth@v0'
       with:
@@ -94,7 +79,7 @@ jobs:
       run: |-
         curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
         chmod u+x ./kustomize
-
+        
     # Deploy the Docker image to the GKE cluster
     - name: Deploy
       run: |-
@@ -102,5 +87,3 @@ jobs:
         ./kustomize edit set image LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG=$us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
         ./kustomize build . | kubectl apply -f -
         kubectl rollout status $DEPLOYMENT_NAME
-        
-      
