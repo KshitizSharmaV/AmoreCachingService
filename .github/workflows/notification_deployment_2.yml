@@ -53,6 +53,9 @@ jobs:
       with:
         credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
 
+    - name: 'Install gke-gcloud-auth-plugin'
+      run: 'gcloud components install gke-gcloud-auth-plugin'
+
 #     - name: Docker configuration
 #       run: |-
 #         echo ${{steps.auth.outputs.access_token}} | docker login -u oauth2accesstoken --password-stdin https://$GAR_LOCATION-docker.pkg.dev
@@ -84,6 +87,16 @@ jobs:
         location: ${{ secrets.ZONE_NAME }}
         project_id: ${{ secrets.PROJECT_ID }}
         use_auth_provider: true
+        
+    - name: kubectl - Google Cloud GKE cluster.
+      uses: ameydev/gke-kubectl-action@master
+      env:
+        PROJECT_ID: ${{ secrets.PROJECT_ID }}
+        APPLICATION_CREDENTIALS: ${{ secrets.COMPUTE_ENGINE_SA_KEY }}
+        CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+        ZONE_NAME: ${{ secrets.ZONE_NAME }}
+      with:
+        args: apply -f NotificationService/deployment.yaml
 
 #     # Build the Docker image
 #     - name: Build
@@ -98,16 +111,16 @@ jobs:
 #       run: |-
 #         docker push "$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE:$GITHUB_SHA"
 
-    # Set up kustomize
-    - name: Set up Kustomize
-      run: |-
-        curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
-        chmod u+x ./kustomize
-    # Deploy the Docker image to the GKE cluster
-    - name: Deploy
-      run: |-
-        # replacing the image name in the k8s template
-        # ./kustomize edit set image LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG=$us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
-        ./kustomize build . | kubectl apply -f -
-        kubectl rollout status $DEPLOYMENT_NAME
-        kubectl get services -o wide
+#     # Set up kustomize
+#     - name: Set up Kustomize
+#       run: |-
+#         curl -sfLo kustomize https://github.com/kubernetes-sigs/kustomize/releases/download/v3.1.0/kustomize_3.1.0_linux_amd64
+#         chmod u+x ./kustomize
+#     # Deploy the Docker image to the GKE cluster
+#     - name: Deploy
+#       run: |-
+#         # replacing the image name in the k8s template
+#         # ./kustomize edit set image LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG=$us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
+#         ./kustomize build . | kubectl apply -f -
+#         kubectl rollout status $DEPLOYMENT_NAME
+#         kubectl get services -o wide
