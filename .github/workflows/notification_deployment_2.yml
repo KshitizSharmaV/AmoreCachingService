@@ -72,7 +72,10 @@ jobs:
         docker tag $IMAGE:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
         docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
 
-    
+    - id: 'auth2'
+      uses: 'google-github-actions/auth@v0'
+      with:
+        credentials_json: '${{ secrets.COMPUTE_ENGINE_SA_KEY }}'    
     # Get the GKE credentials so we can deploy to the cluster
     - name: Set up GKE credentials
       uses: google-github-actions/get-gke-credentials@v0
