@@ -19,8 +19,8 @@ jobs:
       #   with:
       #     credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
       
-      google-github-actions/auth action is used to authenticate with Google Cloud Platform (GCP) using a service account key. 
-      google-github-actions/auth action is used to authenticate with Google Cloud Platform (GCP) using a service account key. It does not install the Cloud SDK or any other tools, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.It does not install the Cloud SDK or any other tools, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.
+      # google-github-actions/auth action is used to authenticate with Google Cloud Platform (GCP) using a service account key. 
+      # google-github-actions/auth action is used to authenticate with Google Cloud Platform (GCP) using a service account key. It does not install the Cloud SDK or any other tools, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.It does not install the Cloud SDK or any other tools, but it does set the necessary environment variables to allow other actions (such as gcloud) to authenticate with GCP.
       # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
       # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
       - id: 'auth'
