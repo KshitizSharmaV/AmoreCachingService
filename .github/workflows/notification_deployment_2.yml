@@ -80,6 +80,7 @@ jobs:
         cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
         location: ${{ secrets.ZONE_NAME }}
         project_id: ${{ secrets.PROJECT_ID }}
+        use_auth_provider: true
 
 #     # Build the Docker image
 #     - name: Build
