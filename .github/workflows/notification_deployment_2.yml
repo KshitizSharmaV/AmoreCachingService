@@ -85,6 +85,6 @@ jobs:
     - name: Deploy
       run: |-
         # replacing the image name in the k8s template
-        ./kustomize edit set image LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG=$us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        # ./kustomize edit set image LOCATION-docker.pkg.dev/PROJECT_ID/REPOSITORY/IMAGE:TAG=$us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
         ./kustomize build NotificationService | kubectl apply -f -
         kubectl rollout status $DEPLOYMENT_NAME
