@@ -97,4 +97,3 @@ jobs:
     - name: Deploy
       run: |-
         kubectl apply -f $DEPLOYMENT_NAME
-        kubectl rollout status $DEPLOYMENT_NAME
