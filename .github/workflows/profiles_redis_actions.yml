@@ -1,62 +1,71 @@
-name: Build and Push Profiles Redis Service to Google Kubernetes Engine
+name: Build and Push Profiles Redis Service to GKE
+
 on:
   workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
+  GAR_LOCATION: ${{ secrets.ZONE_NAME }}
+  GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
+  GKE_ZONE: ${{ secrets.ZONE_NAME }}
+  DEPLOYMENT_NAME: ProfilesRedisService/deployment.yaml
+  REPOSITORY: us-central1-docker.pkg.dev 
+  IMAGE: profiles-redis
+  USE_GKE_GCLOUD_AUTH_PLUGIN: true
+
 jobs:
-  build-push-gcr:
-    name: Build and Push to GCP
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy
     runs-on: ubuntu-latest
-    env:
-      IMAGE_NAME: profiles-redis
-      PROJECT_ID: ${{ secrets.PROJECT_ID }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+    environment: production
 
-      # Refer for guide on auth (Service Account Key JSON): https://github.com/google-github-actions/setup-gcloud#authorization
-      - id: 'auth'
-        uses: 'google-github-actions/auth@v0'
-        with:
-          credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
+    permissions:
+      contents: 'read'
+      id-token: 'write'
 
-      - name: 'Set up Cloud SDK'
-        uses: 'google-github-actions/setup-gcloud@v0'
-
-      - name: 'Use gcloud CLI'
-        run: 'gcloud info'
-
-      - name: Build Docker Image
-        run: docker build -t $IMAGE_NAME:latest -f Dockerfile_ProfileRedis .
-
-      # - name: Automatic Tagging of Releases
-      #   id: increment-git-tag
-      #   run: |
-      #     bash ./scripts/git_update.sh -v major
-      
-      - name: Configure Docker Client
-        run: |-
-          gcloud auth configure-docker --quiet
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-      
-      - name: Push Docker Image to Artifact Registry
-        env:
-          GIT_TAG: latest
-        run: |-
-          docker tag $IMAGE_NAME:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE_NAME:latest
-          docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE_NAME:latest
-  
-  deploy-to-gke:
-    needs: build-push-gcr
-    runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
+    
+    - name: Export use-gke-gcloud-auth-plugin
+      run: |
+        export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 
-    - name: kubectl - Google Cloud GKE cluster.
-      uses: ameydev/gke-kubectl-action@master
-      env:
-        PROJECT_ID: ${{ secrets.PROJECT_ID }}
-        APPLICATION_CREDENTIALS: ${{ secrets.COMPUTE_ENGINE_SA_KEY }}
-        CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
-        ZONE_NAME: ${{ secrets.ZONE_NAME }}
+    - id: 'auth'
+      uses: 'google-github-actions/auth@v0'
       with:
-        args: apply -f ProfilesRedisService/deployment.yaml
+        credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
+    
+    - name: Build Docker Image
+      run: docker build -t $IMAGE:latest -f Dockerfile_ProfileRedis .
+
+    - name: Configure Docker Client
+      run: |-
+        gcloud auth configure-docker --quiet
+        gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+    
+    - name: Push Docker Image to Artifact Registry
+      env:
+        GIT_TAG: latest
+      run: |-
+        docker tag $IMAGE:latest us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        docker push us-central1-docker.pkg.dev/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        
+    - id: 'auth2'
+      uses: 'google-github-actions/auth@v0'
+      with:
+        credentials_json: '${{ secrets.COMPUTE_ENGINE_SA_KEY }}'    
+
+    - name: Install gke-gcloud-auth-plugin
+      run: |
+        gcloud components list
+        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+        sudo apt update
+        sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin kubectl
+        gcloud container clusters get-credentials $GKE_CLUSTER --zone $GKE_ZONE
+
+    # Deploy the Docker image to the GKE cluster
+    - name: Deploy
+      run: |-
+        kubectl apply -f $DEPLOYMENT_NAME
