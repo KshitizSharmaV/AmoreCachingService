@@ -56,7 +56,7 @@ async def LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUs
                                                                            swipedUserId=swipedUserId,
                                                                            currentUserSwipe=swipeStatusBetweenUsers,
                                                                            logger=logger))
-        return asyncio.gather(*[task1, task2, task3])
+        return await asyncio.gather(*[task1, task2, task3])
     except Exception as e:
         logger.error(f"Failed to store the async likesdislikes swipe in firestore/redis")
         logger.exception(e)

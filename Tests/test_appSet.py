@@ -98,11 +98,7 @@ async def test_store_profile_failure(client):
 
 @pytest.mark.asyncio
 async def test_report_profile_success(client):
-    current_user_id = 'UserId1'
-    reported_profile_id = 'UserId2'
-    reason_given = 'Test Report'
-    description_given = 'Test Report'
-        
+   
     # Set up the mocks
     with patch('appSet.Report_profile_task') as report_profile_task:
         report_profile_task.return_value = True
@@ -110,9 +106,9 @@ async def test_report_profile_success(client):
             unmatch_two_users.return_value = await async_mock_child(return_value=True)
         data = {
             'current_user_id' : 'UserId1',
-            'reported_profile_id' : 'UserId2',
-            'reason_given': 'Test Report',
-            'description_given': 'Test Report',
+            'other_user_id' : 'UserId2',
+            'reasonGiven': 'Test Report',
+            'descriptionGiven': 'Test Report',
         }
         response = client.post('/reportprofilegate', json=data)
         # Check the response
