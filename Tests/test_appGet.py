@@ -83,6 +83,19 @@ async def test_get_likes_dislikes_for_user_route_success(client):
 
 
 @pytest.mark.asyncio
+async def test_get_likes_dislikes_for_user_route_failure(client):
+    #Set up the test day
+    #Set up the mocks
+    with patch('appGet.LikesDislikes_fetch_userdata_from_firebase_or_redis') as mock_func:
+        mock_func.side_effect=Exception("Can't get likes/dislikes of the user.")
+        data={'currentUserId':'user1','childCollectionName':1231,'matchFor':'dsag','noOfLastRecords':21}
+        response=client.get('/getlikesdislikesforuser',json=data)
+        
+        #check response
+        assert response.status_code == 401
+
+
+@pytest.mark.asyncio
 async def test_get_profiles_already_seen_by_user_route_success(client):
     # Set up the test data
     # Set up the mocks
