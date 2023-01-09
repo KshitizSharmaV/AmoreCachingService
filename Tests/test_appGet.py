@@ -69,6 +69,18 @@ async def test_fetch_geo_recommendations_failure(client):
         assert response.status_code == 400   
    
      
+@pytest.mark.asyncio
+async def test_get_likes_dislikes_for_user_route_success(client):
+    #Set up the test day
+    #Set up the mocks
+    with patch('appGet.LikesDislikes_fetch_userdata_from_firebase_or_redis') as mock_func:
+        mock_func.return_value=await async_mock_child(return_value=['user1','user2'])
+        data={'currentUserId':'user1','childCollectionName':1231,'matchFor':'dsag','noOfLastRecords':21}
+        response=client.get('/getlikesdislikesforuser',json=data)
+        
+        #check response
+        assert response.status_code ==200
+
 
 @pytest.mark.asyncio
 async def test_get_profiles_already_seen_by_user_route_success(client):
@@ -100,6 +112,7 @@ async def test_load_match_unmatch_profiles_success(client):
     # Set up the mocks
     with patch('appGet.MatchUnmatch_fetch_userdata_from_firebase_or_redis') as mock_func_parent:
         mock_func_parent.return_value=await async_mock_child(return_value=['user1','user2'])
+        
         
         
         
