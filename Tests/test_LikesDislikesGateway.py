@@ -20,3 +20,14 @@ async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user():
                 upgradeLikeToSuperlike=True,
                 logger = MagicMock())
             assert future == [True,True,True]
+            
+            
+@pytest.mark.asyncio
+async def test_LikesDislikes_get_profiles_already_seen_by_id():
+    
+    # Set up the mocks
+        with patch('Gateways.LikesDislikesGateway.LikesDislikes_fetch_userdata_from_firebase_or_redis') as fetch_user_data:
+            fetch_user_data.return_value = await async_mock_child(return_value=True)
+            result = await LikesDislikes_get_profiles_already_seen_by_id(userId="UserId1",childCollectionName="ABC",logger=MagicMock())
+        
+            assert result != None
