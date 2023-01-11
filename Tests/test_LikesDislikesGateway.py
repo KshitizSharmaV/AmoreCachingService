@@ -6,7 +6,7 @@ from Tests.test_base import async_mock_child
 
 
 @pytest.mark.asyncio
-async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user():
+async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user_success():
     
     # Set up the mocks
     with patch('Gateways.LikesDislikesGateway.LikesDislikes_async_store_swipe_task') as store_swipe_task:
@@ -21,13 +21,32 @@ async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user():
                 logger = MagicMock())
             assert future == [True,True,True]
             
-            
+      
+@pytest.mark.asyncio
+async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user_failure():
+    
+    # Set up the mocks
+    with patch('Gateways.LikesDislikesGateway.LikesDislikes_async_store_swipe_task') as store_swipe_task:
+        store_swipe_task.side_effect = Exception("Can't get likes and dislikes for user id")
+        with patch('Gateways.MatchUnmatchGateway.MatchUnmatch_check_match_between_users') as check_match_between_users:
+            check_match_between_users.return_value = await async_mock_child(return_value=True)
+            future = await LikesDislikes_async_store_likes_dislikes_superlikes_for_user(
+                currentUserId="UserId1",
+                swipedUserId="UserId2",
+                swipeStatusBetweenUsers="Match",
+                upgradeLikeToSuperlike=True,
+                logger = MagicMock())
+            assert future == False     
+
+      
 @pytest.mark.asyncio
 async def test_LikesDislikes_get_profiles_already_seen_by_id():
     
     # Set up the mocks
         with patch('Gateways.LikesDislikesGateway.LikesDislikes_fetch_userdata_from_firebase_or_redis') as fetch_user_data:
-            fetch_user_data.return_value = await async_mock_child(return_value=True)
+            fetch_user_data.return_value = await async_mock_child(return_value=[{'user1':'abc'},{'user2':'xyz'}])
             result = await LikesDislikes_get_profiles_already_seen_by_id(userId="UserId1",childCollectionName="ABC",logger=MagicMock())
-        
-            assert result != None
+
+            #removing duplicate elements from the result output using types casting
+            
+            assert result == [{'user1':'abc'},{'user2':'xyz'},{'user1':'abc'},{'user2':'xyz'},{'user1':'abc'},{'user2':'xyz'}]
