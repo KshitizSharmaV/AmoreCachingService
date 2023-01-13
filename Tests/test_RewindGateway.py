@@ -41,3 +41,53 @@ async def test_Rewind_task_function_failure():
         future= await Rewind_task_function(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like",logger = MagicMock())
         
         assert future ==False
+
+
+@pytest.mark.asyncio
+async def test_Rewind_given_swipe_task_sucess():
+    
+    with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
+        await async_db.collection('LikesDislikes').document("user1").collection("Given").document("user2").delete()
+
+        mock_f.return_value =mock_f({"current_user_id": "user1", "idToBeDeleted": "user2", "childCollectionName":"Given","swipeStatusBetweenUsers":"swipeStatusBetweenUsers"})
+
+        future= await Rewind_given_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like",logger = MagicMock())
+        
+        assert future==None
+        
+        
+@pytest.mark.asyncio
+async def test_Rewind_given_swipe_task_failure():
+    
+    with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
+        mock_f.side_effect = Exception("Can't get profile")
+
+        future= await Rewind_given_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like",logger = MagicMock())
+        
+        assert future==False
+
+
+@pytest.mark.asyncio
+async def test_Rewind_received_swipe_task_sucess():
+    
+    with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
+        await async_db.collection('LikesDislikes').document("user2").collection("Received").document("user1").delete()
+
+        mock_f.return_value =mock_f({"user_id": "user1", "idToBeDeleted": "user2", "childCollectionName":"Given","swipeStatusBetweenUsers":"swipeStatusBetweenUsers"})
+
+        future= await Rewind_received_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like",logger = MagicMock())
+        
+        assert future==None
+        
+
+@pytest.mark.asyncio
+async def test_Rewind_received_swipe_task_failure():
+    
+    with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
+        mock_f.side_effect = Exception("Can't get profile")
+
+        future= await Rewind_received_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like",logger = MagicMock())
+        
+        assert future==False
+        
+        
