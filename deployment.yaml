@@ -15,18 +15,16 @@ spec:
       labels:
         app: caching
     spec:
-      affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-              - matchExpressions:
-                - key: cloud.google.com/gke-nodepool
-                  operator: In
-                  values:
-                  - default-pool
       containers:
         - name: caching
           image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/caching-api:latest
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
           # imagePullPolicy: Never
           ports:
             - containerPort: 5050
