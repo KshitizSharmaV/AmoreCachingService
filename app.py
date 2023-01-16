@@ -1,14 +1,8 @@
-from genericpath import exists
 import flask
-from flask import Flask, jsonify, request
-import traceback
-import time
-from datetime import datetime
+import sys
+from flask import Flask
 import logging.config
-import os
-from logging.handlers import TimedRotatingFileHandler
 import json
-import asyncio
 from appGet import app_get
 from appSet import app_set
 
@@ -21,7 +15,7 @@ app.register_blueprint(app_set)
 def setup_logging():
     if not app.debug:
         # In production mode, add log handler to sys.stderr.
-        app.logger.addHandler(logging.StreamHandler())
+        app.logger.addHandler(logging.StreamHandler(sys.stderr))
         app.logger.setLevel(logging.INFO)
 
 import json
