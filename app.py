@@ -1,7 +1,8 @@
 import flask
 import sys
 from flask import Flask
-import logging.config
+from ProjectConf.FirestoreConf import *
+import logging
 import json
 from appGet import app_get
 from appSet import app_set
@@ -15,8 +16,8 @@ app.register_blueprint(app_set)
 def setup_logging():
     if not app.debug:
         # In production mode, add log handler to sys.stderr.
-        app.logger.addHandler(logging.StreamHandler(sys.stderr))
         app.logger.setLevel(logging.INFO)
+        app.logger.addHandler(logging.StreamHandler(sys.stderr))
 
 import json
 @app.route("/test", methods=["Get"])
