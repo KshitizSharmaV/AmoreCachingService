@@ -27,7 +27,7 @@ def setup_logging():
         client.setup_logging()
         # In production mode, add log handler to sys.stderr.
         app.logger.setLevel(logging.INFO)
-        app.logger.addHandler(logging.StreamHandler())
+        app.logger.addHandler(logging.StreamHandler(sys.stdout))
 
 import json
 @app.route("/test", methods=["Get"])
