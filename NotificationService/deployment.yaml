@@ -15,20 +15,16 @@ spec:
       labels:
         app: notification
     spec:
-    # Assign to redis-pool nodepool
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: cloud.google.com/gke-nodepool
-                operator: In
-                values:
-                - redis-pool 
       containers:
         - name: notification
           image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/notification:latest
-          # imagePullPolicy: Never
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
           env:
             - name: FIREBASE_CRED
               valueFrom:

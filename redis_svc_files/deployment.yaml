@@ -29,24 +29,18 @@ spec:
         app: redis-primary
     spec:
       subdomain: primary
-      # Assign to redis-pool nodepool
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: cloud.google.com/gke-nodepool
-                operator: In
-                values:
-                - redis-pool 
       containers:
       - name: redis
         image: redislabs/redisearch
+        resources:
+            limits:
+              memory: "1024Mi"
+              cpu: "1000m"
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
         ports:
         - containerPort: 6379
-        # volumeMounts:
-        #   - mountPath: /data
-        #     name: redis-data
         volumeMounts:
           - mountPath: "/data"
             name: task-pv-storage
