@@ -48,10 +48,10 @@ async def Rewind_given_swipe_task(current_user_id: str = None, swiped_user_id: s
                                             childCollectionName="Given", 
                                             swipeStatusBetweenUsers=swipeStatusBetweenUsers, 
                                             logger=logger)
+        return True
     except Exception as e:
         logger.exception(e)
         return False
-    return 
 
 async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None, logger: Logger = None):
     """
@@ -68,6 +68,7 @@ async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id
                                             childCollectionName="Received", 
                                             swipeStatusBetweenUsers=swipeStatusBetweenUsers, 
                                             logger=logger)
+        return True
     except Exception as e:
         logger.exception(e)
         return False

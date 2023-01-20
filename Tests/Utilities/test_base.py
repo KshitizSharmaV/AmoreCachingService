@@ -2,7 +2,8 @@ import unittest
 from unittest.mock import patch, AsyncMock
 import json
 from app import app
-
+import pytest
+from unittest.mock import MagicMock
 
 async def async_mock_parent(return_value=None, side_effect=None):
     """Helper function to create an async mock"""
@@ -17,4 +18,17 @@ async def async_mock_child(return_value=None):
     """
     "Used to await mock object response from functions"
     return return_value
+
+@pytest.fixture
+def client():
+    # Set up the Flask app and test client
+    app.config['TESTING'] = True
+    client = app.test_client()
+    yield client
+        
+
+@pytest.fixture
+def mock_firestore():
+    firestore_mock = MagicMock()
+    yield firestore_mock
 
