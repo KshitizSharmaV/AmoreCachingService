@@ -1,4 +1,4 @@
-name: Build and Push Profiles Redis Service to GKE
+name: Build and Push Common Services to GKE
 
 on:
   workflow_dispatch:
