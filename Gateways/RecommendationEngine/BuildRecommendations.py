@@ -3,14 +3,10 @@ import traceback
 
 import pandas as pd
 from redis import Redis
-from logging import Logger
 from Gateways.RecommendationEngine.ProfilesGrader import ProfilesGrader
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.AsyncioPlugin import run_coroutine
-# IMPORTS FOR TEST
-from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
-from ProjectConf.LoggerConf import logger as logger1
-
+from Utilities.LogSetup import logger
 
 class RecommendationSystem:
     """
@@ -29,19 +25,16 @@ class RecommendationSystem:
     current_user_filters: dict
     profiles_already_in_deck: [str]
     other_users_data: dict
-    logger: Logger
-
+    
     normalised_other_users_df: pd.DataFrame
 
-    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str], logger: Logger):
+    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str]):
         self.current_user_id = current_user_id
         self.current_user_filters = current_user_filters
         self.profiles_already_in_deck = profiles_already_in_deck
-        self.logger = logger
         self.profiles_fetcher = ProfilesFetcher(current_user_id=current_user_id,
                                                 current_user_filters=current_user_filters,
-                                                profiles_already_in_deck=profiles_already_in_deck,
-                                                logger=logger)
+                                                profiles_already_in_deck=profiles_already_in_deck)
 
     def fetch_current_and_other_users_data(self):
         """
@@ -54,7 +47,7 @@ class RecommendationSystem:
             # Brings all the profiles which are not seen by the user
             self.other_users_data = self.profiles_fetcher.get_final_fetched_profiles()
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
 
     def grade_other_users_profiles(self):
         """
@@ -64,14 +57,13 @@ class RecommendationSystem:
         try:
             if self.other_users_data:
                 self.profile_grader = ProfilesGrader(current_user_data=self.current_user_data,
-                                                     other_users_data=self.other_users_data,
-                                                     logger=self.logger)
+                                                     other_users_data=self.other_users_data)
                 future = run_coroutine(self.profile_grader.get_normalised_graded_profiles_df())
                 self.normalised_other_users_df = future.result()
             else:
                 self.normalised_other_users_df = pd.DataFrame()
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
 
     def build_recommendations(self):
         """
@@ -101,6 +93,5 @@ class RecommendationSystem:
 if __name__ == "__main__":
     recommendation_obj = RecommendationSystem(current_user_id="nVA4bAkUWubnEFGTVdO4IVUDDW02",
                                               current_user_filters={"radiusDistance": 50}, 
-                                              profiles_already_in_deck=[],
-                                              logger=logger1)
+                                              profiles_already_in_deck=[])
     recommendation_obj.build_recommendations()

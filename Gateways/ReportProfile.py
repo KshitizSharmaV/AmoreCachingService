@@ -1,11 +1,9 @@
-import asyncio
 import json
 import time
-from redis.client import Redis
-from ProjectConf.FirestoreConf import async_db, db
-from logging import Logger
+from ProjectConf.FirestoreConf import db
 from ProjectConf.RedisConf import redis_client
 
+# TODO fix this function - remove Geoservice
 def Report_profile_task(current_user_id=None, reported_profile_id=None, reason_given=None, description_given=None):
     """
     Report Profile Task:

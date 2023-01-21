@@ -1,22 +1,23 @@
 from __future__ import annotations
 import json
 import time
-import firebase_admin
+from firebase_admin import messaging
 from redis.commands.json.path import Path
 from redis.commands.search.query import Query
 from ProjectConf.RedisConf import redis_client, try_creating_fcm_index_for_redis, check_redis_index_exists
 from ProjectConf.FirestoreConf import db
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_exponential
 
+from Utilities.LogSetup import logger
+
 amoreicon_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsUg-k2/view?usp=sharing"
 
-async def Notification_store_fcm_token_in_redis(fcm_data=None, logger=None):
+async def Notification_store_fcm_token_in_redis(fcm_data=None):
     """
     Store Notifications in Redis Cache.
         - Write/Update current Notification data in Redis
     :param profile: Notification Dict/JSON
-    :param logger: Current app logger for logging on stdout
-
+    
     :return: Status of store action as Boolean
     """
     try:
@@ -29,12 +30,12 @@ async def Notification_store_fcm_token_in_redis(fcm_data=None, logger=None):
       logger.info(f"Notification stored/updated in cache with key: {key}")
       return True
     except Exception as e:
-        logger.exception(f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']} unable to store fcm token")
-        logger.exception(f"{fcm_data}")
-        logger.exception(e)
-        return False
+      logger.exception(f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']} unable to store fcm token")
+      logger.exception(f"{fcm_data}")
+      logger.exception(e)
+      return False
 
-def Notification_fetch_fcm_token_docs_for_userId(user_id=None, logger=None):
+def Notification_fetch_fcm_token_docs_for_userId(user_id=None):
     """
       Returns the fcm tokens for a user id from the redis
         - Creates a redis query
@@ -42,7 +43,6 @@ def Notification_fetch_fcm_token_docs_for_userId(user_id=None, logger=None):
         - Get the list of fcm token for the userId
         
       param user_id: string
-      param logger: Logger
     """
     try:
       # Check if the index already exists for redis
@@ -65,13 +65,12 @@ def Notification_fetch_fcm_token_docs_for_userId(user_id=None, logger=None):
         return False
 
 
-def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, deviceId=None, logger=None):
+def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, deviceId=None):
   """Returns the fcm tokens for a user id and device id from the redis
         - Fetch a single FCMToken record using the userId and deviceId
     
     param user_id: string
     param deviceId: string
-    param logger: Logger
     
     Raises:
       FCMToken missing error
@@ -103,7 +102,7 @@ def Notification_get_fcm_tokens_from_redis_docs(fcm_token_docs=None):
   return fcm_tokens
 
 
-def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notification=None, data=None, fcm_tokens=None, logger=None, dry_run=None):
+def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notification=None, data=None, fcm_tokens=None, dry_run=None):
   """
     Call this function to send a notification to all devices of a user id
 
@@ -111,7 +110,6 @@ def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notific
     param apns: firebase_admin.messaging.APNSConfig
     param notification: firebase_admin.messaging.Notification object
     param data: payLoad needed to be delivered to device other than the notification
-    param logger: Logger
     pram dry_run: Bool
   """
   try:
@@ -121,12 +119,12 @@ def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notific
     # TODO Add collapsible or non-collapsible message type
     # Check the JSON representation of the MultiCastMessage here
     # https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages
-    message = firebase_admin.messaging.MulticastMessage(
+    message = messaging.MulticastMessage(
       notification=notification,
       data=data,
       tokens=fcm_tokens,
       apns=apns)
-    response = firebase_admin.messaging.send_multicast(message, dry_run)
+    response = messaging.send_multicast(message, dry_run)
     return response
   except Exception as e:
       logger.exception(f'Unable to send Notification to the {user_id}')
@@ -134,13 +132,12 @@ def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notific
       return False
 
 
-def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_tokens=None, logger=None):
+def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_tokens=None):
     '''
     Returns the number of failed token in the FCM respones if any
 
     param response: Multicast response from Firebase Cloud Messaging 
     param fcm_tokens: List of registrations tokens to which messages were broadcasted
-    param logger: logging Object
     '''
     try:
       logger.info('Notification sent successfully to {0} devices'.format(response.success_count))
@@ -157,7 +154,7 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                   # UNREGISTERED
                   logger.warning(f"UNREGISTERED Deleting expired FCM Token for user {user_id}")
                   # Delete the FCMToken for the user
-                  resp = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx], logger=logger) 
+                  resp = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx]) 
                 
                 elif resp.exception.cause.status_code == 403:
                   # SENDER_ID_MISMATCH
@@ -169,18 +166,18 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                 elif resp.exception.cause.status_code == 429:
                   # QUOTA_EXCEEDED
                   logger.error(f"QUOTA_EXCEEDED for {user_id} {fcm_tokens[idx]}")
-                  Notification_QUOTA_EXCEEDED(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay, logger=logger)
+                  Notification_QUOTA_EXCEEDED(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay)
                   
                 elif resp.exception.cause.status_code == 503:
                   # UNAVAILABLE
                   logger.error(f"UNAVAILABLE {user_id} {fcm_tokens[idx]}")
-                  Notification_UNAVAILABLE(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay, logger=logger)
+                  Notification_UNAVAILABLE(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay)
                 
                 elif resp.exception.cause.status_code == 500:
                   # INTERNAL
                   logger.error(f"INTERNAL error {user_id} {fcm_tokens[idx]}, retry backoff with timeout")
                   logger.error(resp.exception.cause)
-                  Notification_INTENRAL(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay, logger=logger)
+                  Notification_INTENRAL(user_id=user_id, fcm_token=fcm_tokens[idx], retry_after_delay=retry_after_delay)
 
                 elif resp.exception.cause.status_code == 401:
                   # THIRD_PARTY_AUTH_ERROR
@@ -199,30 +196,29 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
       logger.exception(e)
       return False
 
-async def Notification_design_and_multicast(user_id=None, pay_load=None, logger=None, dry_run=True):
+async def Notification_design_and_multicast(user_id=None, pay_load=None, dry_run=True):
     """ Sends multicast notification to all devices of a userId
 
     Args:
       user_id: String of userId
       pay_load: Payload for notification. This paload consist of many attributes which are used
       to build the notification itself
-      logger: logger
       dry_run: Will not send multicast notification if set True; Default is True
     Returns:
       Boolean value if the notification was sent successfully
     """
     # Title and body of notification
-    notification = firebase_admin.messaging.Notification(title=pay_load['title'], body=pay_load['body'])
+    notification = messaging.Notification(title=pay_load['title'], body=pay_load['body'])
     # Firestore analytical label and notification image
     notification_image = pay_load['notification_image'] if pay_load['notification_image'] else amoreicon_image
-    fcm_options = firebase_admin.messaging.APNSFCMOptions(analytics_label=pay_load['analytics_label'], image=notification_image)
+    fcm_options = messaging.APNSFCMOptions(analytics_label=pay_load['analytics_label'], image=notification_image)
     # Badge Count and Notification Category
-    aps = firebase_admin.messaging.Aps(badge=pay_load['badge_count'], category=pay_load['aps_category'])
-    payload = firebase_admin.messaging.APNSPayload(aps=aps)
-    apns = firebase_admin.messaging.APNSConfig(fcm_options=fcm_options, payload=payload)
+    aps = messaging.Aps(badge=pay_load['badge_count'], category=pay_load['aps_category'])
+    payload = messaging.APNSPayload(aps=aps)
+    apns = messaging.APNSConfig(fcm_options=fcm_options, payload=payload)
 
     # Logic to send notifications
-    fcm_token_docs = Notification_fetch_fcm_token_docs_for_userId(user_id=user_id,  logger=logger)
+    fcm_token_docs = Notification_fetch_fcm_token_docs_for_userId(user_id=user_id)
     fcm_tokens = Notification_get_fcm_tokens_from_redis_docs(fcm_token_docs=fcm_token_docs)
     if len(fcm_tokens) == 0:
         logger.error(f"No DeviceId and FCMToken record found for the userid {user_id}")
@@ -232,21 +228,18 @@ async def Notification_design_and_multicast(user_id=None, pay_load=None, logger=
                                             notification=notification,
                                             data=pay_load['data'],
                                             fcm_tokens=fcm_tokens, 
-                                            logger=logger,
                                             dry_run=dry_run)
     failed_tokens = Notification_failed_tokens(user_id=user_id, pay_load=None, response=response, 
-                                    fcm_tokens=fcm_tokens, 
-                                    logger=logger)
+                                    fcm_tokens=fcm_tokens)
     return response
 
-def Notification_delete_fcm_token(user_id=None, fcm_token=None, logger=None):
+def Notification_delete_fcm_token(user_id=None, fcm_token=None):
   """Deletes FCMToken from redis and firestore
   Delete FCM Token record from redis
   Deletes the record from firestore
 
   : param user_id: user id for which the profile has to be deleted
   : param fcm_token: delete the fcm token to be deleted from firestore
-  : pram logger
   """
   try:
     logger.info(f"Deleting FCMToken for {user_id}")
@@ -266,7 +259,7 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None, logger=None):
     logger.exception(f"Unable to delete FCMToken {user_id} {fcm_token}")
     return False
   
-def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
+def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_delay=1):
     """The Notificaton exponential back off should honour all google policies around FCM
     https://firebase.google.com/docs/reference/fcm/rest/v1/ErrorCode
 
@@ -274,7 +267,6 @@ def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_
 
     param user_id
     param fcm_token
-    param logger
     """
     try:
       default_delay = 0.2 # delay between two different messages in the pipeline
@@ -284,16 +276,16 @@ def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_
     except RetryError:
       return
 
-def Notification_UNAVAILABLE(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
+def Notification_UNAVAILABLE(user_id=None, fcm_token=None, retry_after_delay=1):
     """The server couldn't process the request in time. Retry the same request, but you must:
     TODO Honor the Retry-After header if it is included in the response from the FCM Connection Server.
     TODO Implement exponential back-off in your retry
     TODO Delay next message independently by an additional random amount to avoid issuing a new request for all messages at the same time.
     """
-    Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay, logger=logger)
+    Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay)
     return 
 
-def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
+def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, retry_after_delay=1):
   """QUOTA_EXCEEDED: This error can be caused by exceeded message rate quota, exceeded device message rate quota, or exceeded topic message rate quota.
     TODO Handle Message rate exceeded - Decrease the message rate overall
       Createa global message variable using which we can throttle the speed of sending all notifications
@@ -305,21 +297,19 @@ def Notification_QUOTA_EXCEEDED(user_id=None, fcm_token=None, retry_after_delay=
 
     param user_id
     param fcm_token
-    param logger
   """
   time.sleep(10)
-  Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay, logger=logger)
+  Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay)
   return 
 
-def Notification_INTENRAL(user_id=None, fcm_token=None, retry_after_delay=1, logger=None):
+def Notification_INTENRAL(user_id=None, fcm_token=None, retry_after_delay=1):
   """INTENRAL: 
     TODO Retry the same request following request and Honor the Retry-After(Timeout)
     
     param user_id
     param fcm_token
-    param logger
   """
-  Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay, logger=logger)
+  Notification_exponential_back_off(user_id=user_id, fcm_token=fcm_token, retry_after_delay=retry_after_delay)
   return
 
 def Notification_expire():

@@ -12,13 +12,6 @@ app = Flask(__name__)
 app.register_blueprint(app_get)
 app.register_blueprint(app_set)
 
-# @app.before_first_request
-# def setup_logging():
-#     if not app.debug:
-#         # In production mode, add log handler to sys.stderr.
-#         app.logger.addHandler(logging.StreamHandler(sys.stderr))
-#         app.logger.setLevel(logging.INFO)
-
 import json
 @app.route("/test", methods=["Get"])
 def test():

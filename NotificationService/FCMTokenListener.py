@@ -16,18 +16,7 @@ from ProjectConf.FirestoreConf import db, async_db
 from ProjectConf.AsyncioPlugin import run_coroutine
 from google.cloud import firestore
 from Gateways.NotificationGateway import Notification_store_fcm_token_in_redis
-
-# Log Settings
-LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
-if not os.path.exists('Logs/FCMTokenListener/'):
-    os.makedirs('Logs/FCMTokenListener/')
-logHandler = TimedRotatingFileHandler(f"Logs/FCMTokenListener/{LOG_FILENAME}",when="midnight")
-logFormatter = logging.Formatter(f'%(asctime)s %(levelname)s %(threadName)s : %(message)s')
-logHandler.setFormatter(logFormatter)
-logger = logging.getLogger(f'Logs/FCMTokenListener/{LOG_FILENAME}')
-logger.addHandler(logHandler)
-logger.setLevel(logging.INFO)
-
+from Utilities.LogSetup import logger
 
 # Handles fcmtoken update in firestore
 def fcm_token_update_handler(user_id=None):
@@ -43,11 +32,10 @@ def fcm_token_update_handler(user_id=None):
             fcm_data['userId'] = user_id
             # Get time in seconds 
             fcm_data['timestamp'] = fcm_data['timestamp'].timestamp()
-            print(fcm_data)
-            print(type(fcm_data))
-
+            logger.warning(fcm_data)
+            
             # If the record already exists the record will be overwritten
-            future = run_coroutine(Notification_store_fcm_token_in_redis(fcm_data=fcm_data, logger=logger))
+            future = run_coroutine(Notification_store_fcm_token_in_redis(fcm_data=fcm_data))
             result = future.result()
         # Set the wasUpdated = False, because we processed the change
         db.collection("FCMTokens").document(user_id).update({'wasUpdated':False})
@@ -96,7 +84,7 @@ if __name__ == '__main__':
         logger.warning("Main:Un-suscribed from FCMTokenListener Service")
     finally:
         # Unsuscribe from all the listeners
-        print("Finally was executed")
+        logger.warning("Finally was executed")
         logger.error("Error: FCMTokenListener Service was Unsubscribed")
         query_watch.unsubscribe()
     callback_done.set()

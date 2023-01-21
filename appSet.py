@@ -1,11 +1,8 @@
-from tempfile import TemporaryFile
-import flask
-from flask import Blueprint, current_app, jsonify, request
-import json
+from flask import Blueprint, jsonify, request
 
 from ProjectConf.AsyncioPlugin import run_coroutine
-from ProjectConf.FirestoreConf import async_db, db
-from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
+from Utilities.LogSetup import logger
+
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
 from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
 from Gateways.RewindGateway import Rewind_task_function, get_last_given_swipe_from_firestore
@@ -13,13 +10,8 @@ from Gateways.ReportProfile import Report_profile_task
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
-import logging
-import asyncio
-import traceback
-import pandas as pd
 
 app_set = Blueprint('appSet', __name__)
-logger = logging.getLogger()
 
 # store_likes_dislikes_superlikes store likes, dislikes and superlikes in own user id and other profile being acted on
 @app_set.route('/storelikesdislikesGate', methods=['POST'])
@@ -43,15 +35,13 @@ def store_likes_dislikes_superlikes():
         future = run_coroutine(LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=currentUserId,
                                                                                             swipedUserId=swipedUserId,
                                                                                             swipeStatusBetweenUsers=swipeInfo,
-                                                                                            upgradeLikeToSuperlike=upgradeLikeToSuperlike,
-                                                                                            async_db=async_db,
-                                                                                            logger=current_app.logger))
+                                                                                            upgradeLikeToSuperlike=upgradeLikeToSuperlike))
         future.result()
-        current_app.logger.info(f"Storing {currentUserId} {swipeInfo} on {swipedUserId}")
+        logger.info(f"Storing {currentUserId} {swipeInfo} on {swipedUserId}")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
-        current_app.logger.exception(e)
+        logger.exception(f"Unable to store likes dislikes super likes {currentUserId}:{swipedUserId}:{swipeInfo} ")
+        logger.exception(e)
         return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
@@ -61,14 +51,13 @@ def unmatch():
         current_user_id = request.get_json().get('current_user_id')
         other_user_id = request.get_json().get('other_user_id')
         future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
-                                                        other_user_id=other_user_id,
-                                                        logger=current_app.logger))
+                                                        other_user_id=other_user_id))
         future.result()
-        current_app.logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
+        logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to unmatch {current_user_id} and {other_user_id}")
-        current_app.logger.exception(e)
+        logger.exception(f"Unable to unmatch {current_user_id} and {other_user_id}")
+        logger.exception(e)
         return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
@@ -86,23 +75,20 @@ def rewind_single_swipe():
             swiped_user_id, swipeStatusBetweenUsers = get_last_given_swipe_from_firestore(current_user_id=current_user_id)
             future = run_coroutine(Rewind_task_function(current_user_id=current_user_id, 
                                                         swiped_user_id=swiped_user_id,
-                                                        swipeStatusBetweenUsers=swipeStatusBetweenUsers,
-                                                        logger=current_app.logger))
+                                                        swipeStatusBetweenUsers=swipeStatusBetweenUsers))
             future.result()
-            allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[swiped_user_id], 
-                                                                logger=current_app.logger, 
-                                                                async_db=async_db))
+            allProfilesData = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[swiped_user_id]))
             allProfilesData = allProfilesData.result()
             rewinded_user_info = allProfilesData[0]
             rewinded_dict = {"rewindedUserCard": rewinded_user_info, "swipeStatusBetweenUsers": swipeStatusBetweenUsers}
-            current_app.logger.info(f"Successfully rewinded {swipeStatusBetweenUsers} by {current_user_id}")
+            logger.info(f"Successfully rewinded {swipeStatusBetweenUsers} by {current_user_id}")
             return jsonify(rewinded_dict)
         else:
-            current_app.logger.warning(f"Invalid current User ID")
+            logger.warning(f"Invalid current User ID")
             return jsonify({'status': 500})
     except Exception as e:
-        current_app.logger.exception(f"Unable to rewind swipe by {current_user_id}")
-        current_app.logger.exception(e)
+        logger.exception(f"Unable to rewind swipe by {current_user_id}")
+        logger.exception(e)
         return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
@@ -117,16 +103,15 @@ def store_profile():
     try:
         profile = request.get_json().get('profile')
         # Update the cache with profile data?
-        future = run_coroutine(GeoService_store_profiles(profile=profile,
-                                                         logger=current_app.logger))
+        future = run_coroutine(GeoService_store_profiles(profile=profile))
         result = future.result()
-        current_app.logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
+        logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
         response = jsonify({'message': f"{profile['id']}: Successfully stored profile in Cache/DB"})
         response.status_code = 200
         return response
     except Exception as e:
-        current_app.logger.exception(f"{profile['id']}: Unable to stored profile in Cache/DB")
-        current_app.logger.exception(e)
+        logger.exception(f"{profile['id']}: Unable to stored profile in Cache/DB")
+        logger.exception(e)
         response = jsonify({'message': 'An error occured in API /storeProfileInBackendGate'})
         response.status_code = 400
         return response
@@ -148,14 +133,13 @@ def report_profile():
         status = Report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
                                      reason_given=reason_given, description_given=description_given)
         future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
-                                                    other_user_id=reported_profile_id,
-                                                    logger=current_app.logger))
+                                                    other_user_id=reported_profile_id))
         future.result()
-        current_app.logger.info(f"Successfully reported profile {reported_profile_id}")
+        logger.info(f"Successfully reported profile {reported_profile_id}")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to report profile {reported_profile_id}")
-        current_app.logger.exception(e)
+        logger.exception(f"Unable to report profile {reported_profile_id}")
+        logger.exception(e)
         return jsonify({'status': 500, 'message': 'Unable to process request'}), 500
 
 
@@ -173,12 +157,11 @@ def match_profiles_on_direct_message():
         current_user_id = request.get_json().get('currentUserId')
         other_user_id = request.get_json().get('otherUserId')
         future = run_coroutine(
-            match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id,
-                                                  async_db=async_db, logger=logger))
+            match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id))
         _ = future.result()
-        current_app.logger.info(f"Successfully matched profile {current_user_id} and {other_user_id}")
+        logger.info(f"Successfully matched profile {current_user_id} and {other_user_id}")
         return jsonify({'status': 200})
     except Exception as e:
-        current_app.logger.exception(f"Unable to match profiles {current_user_id} and {other_user_id}")
-        current_app.logger.exception(e)
+        logger.exception(f"Unable to match profiles {current_user_id} and {other_user_id}")
+        logger.exception(e)
         return jsonify({'status': 500, 'message': 'Unable to process request'}), 500

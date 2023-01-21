@@ -1,13 +1,12 @@
 import asyncio
-import json
-import time
-from redis.client import Redis
-from ProjectConf.FirestoreConf import async_db, db
 from google.cloud import firestore
-from Gateways.LikesDislikesGatewayEXT import LikesDislikes_delete_record_from_redis
-from logging import Logger
 
-async def Rewind_task_function(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None, logger=None):
+from ProjectConf.FirestoreConf import async_db, db
+from Utilities.LogSetup import logger
+
+from Gateways.LikesDislikesGatewayEXT import LikesDislikes_delete_record_from_redis
+
+async def Rewind_task_function(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None):
     """
     Rewind a user's swipe
         - remove the given swipe from collection
@@ -20,20 +19,18 @@ async def Rewind_task_function(current_user_id: str = None, swiped_user_id: str 
     try:
         given_swipe_task = asyncio.create_task(Rewind_given_swipe_task(current_user_id=current_user_id, 
                                                                     swiped_user_id=swiped_user_id, 
-                                                                    swipeStatusBetweenUsers=swipeStatusBetweenUsers, 
-                                                                    logger=logger))
+                                                                    swipeStatusBetweenUsers=swipeStatusBetweenUsers))
         
         received_swipe_task = asyncio.create_task(Rewind_received_swipe_task(current_user_id=current_user_id, 
                                                                     swiped_user_id=swiped_user_id, 
-                                                                    swipeStatusBetweenUsers=swipeStatusBetweenUsers, 
-                                                                    logger=logger))
+                                                                    swipeStatusBetweenUsers=swipeStatusBetweenUsers))
         return await asyncio.gather(*[given_swipe_task, received_swipe_task])
     except Exception as e:
         logger.error(f"Unable to delete likesdislikes for {current_user_id} {swiped_user_id} {swipeStatusBetweenUsers}")
         logger.exception(e)
         return False
 
-async def Rewind_given_swipe_task(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None, logger: Logger = None):
+async def Rewind_given_swipe_task(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None):
     """
     Rewind a given swipe
         - remove the given swipe from collection
@@ -46,14 +43,13 @@ async def Rewind_given_swipe_task(current_user_id: str = None, swiped_user_id: s
         await LikesDislikes_delete_record_from_redis(userId=current_user_id, 
                                             idToBeDeleted=swiped_user_id, 
                                             childCollectionName="Given", 
-                                            swipeStatusBetweenUsers=swipeStatusBetweenUsers, 
-                                            logger=logger)
+                                            swipeStatusBetweenUsers=swipeStatusBetweenUsers)
         return True
     except Exception as e:
         logger.exception(e)
         return False
 
-async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None, logger: Logger = None):
+async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None):
     """
     Rewind a received swipe
         - remove the received swipe from collection
@@ -66,8 +62,7 @@ async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id
         await LikesDislikes_delete_record_from_redis(userId=swiped_user_id, 
                                             idToBeDeleted=current_user_id, 
                                             childCollectionName="Received", 
-                                            swipeStatusBetweenUsers=swipeStatusBetweenUsers, 
-                                            logger=logger)
+                                            swipeStatusBetweenUsers=swipeStatusBetweenUsers)
         return True
     except Exception as e:
         logger.exception(e)

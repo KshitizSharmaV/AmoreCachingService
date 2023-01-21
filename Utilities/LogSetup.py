@@ -4,19 +4,16 @@ import sys
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-# create a file handler
-fh = logging.FileHandler('Logs/app.log')
-fh.setLevel(logging.DEBUG)
-
 # create a console handler
 ch = logging.StreamHandler(sys.stderr)
 ch.setLevel(logging.DEBUG)
 
 # create a formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter)
 ch.setFormatter(formatter)
 
 # add the handlers to the logger
-logger.addHandler(fh)
 logger.addHandler(ch)
+
+
+

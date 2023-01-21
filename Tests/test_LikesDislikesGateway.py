@@ -15,8 +15,7 @@ async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user_succ
                 currentUserId="UserId1",
                 swipedUserId="UserId2",
                 swipeStatusBetweenUsers="Match",
-                upgradeLikeToSuperlike=True,
-                logger = MagicMock())
+                upgradeLikeToSuperlike=True)
             assert future == [True,True,True]
             
       
@@ -30,8 +29,7 @@ async def test_LikesDislikes_async_store_likes_dislikes_superlikes_for_user_fail
                 currentUserId="UserId1",
                 swipedUserId="UserId2",
                 swipeStatusBetweenUsers="Match",
-                upgradeLikeToSuperlike=True,
-                logger = MagicMock())
+                upgradeLikeToSuperlike=True)
             assert future == False     
 
       
@@ -40,5 +38,5 @@ async def test_LikesDislikes_get_profiles_already_seen_by_id():
     # Set up the mocks
     with patch('Gateways.LikesDislikesGateway.LikesDislikes_fetch_userdata_from_firebase_or_redis') as fetch_user_data:
         fetch_user_data.return_value = await async_mock_child(return_value=[{'user1':'abc'},{'user2':'xyz'}])
-        result = await LikesDislikes_get_profiles_already_seen_by_id(userId="UserId1",childCollectionName="ABC",logger=MagicMock())
+        result = await LikesDislikes_get_profiles_already_seen_by_id(userId="UserId1",childCollectionName="ABC")
         assert result == [{'user1':'abc'},{'user2':'xyz'},{'user1':'abc'},{'user2':'xyz'},{'user1':'abc'},{'user2':'xyz'}]

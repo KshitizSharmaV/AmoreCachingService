@@ -21,23 +21,13 @@ from logging.handlers import TimedRotatingFileHandler
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 
-# Log Settings
-LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
-if not os.path.exists('Logs/ProfilesRedisService/'):
-    os.makedirs('Logs/ProfilesRedisService/')
-logHandler = TimedRotatingFileHandler(f'Logs/ProfilesRedisService/{LOG_FILENAME}', when="midnight")
-logFormatter = logging.Formatter(f'%(asctime)s %(levelname)s %(threadName)s : %(message)s')
-logHandler.setFormatter(logFormatter)
-logger = logging.getLogger(f'Logs/ProfilesRedisService/{LOG_FILENAME}')
-logger.addHandler(logHandler)
-logger.setLevel(logging.INFO)
-
+from Utilities.LogSetup import logger
 
 def on_create_or_update_profile(document):
     try:
         profile_data = Profile.encode_data_for_redis(document.to_dict())
         profile_data['id'] = document.id
-        future = run_coroutine(GeoService_store_profiles(profile=profile_data, logger=logger))
+        future = run_coroutine(GeoService_store_profiles(profile=profile_data))
         result = future.result()
     except Exception as e:
         logger.exception(e)
