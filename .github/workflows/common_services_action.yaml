@@ -62,12 +62,12 @@ jobs:
       run: |-
         for my_image in ${{ matrix.my_images }}
         do
-          echo "Building image: ${{ my_image.image }}"
-          docker build -t ${{ my_image.image }}:latest -f ${{ my_image.Dockerfile }} .
-          echo "Tagging image: ${{ my_image.image }}"
-          docker tag ${{ my_image.image }}:latest $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image.image }}:latest
-          echo "Pushing image: ${{ my_image.image }}"
-          docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image.image }}:latest
+          echo "Building image: ${{ my_image['image'] }}"
+          docker build -t ${{ my_image['image'] }}:latest -f ${{ my_image['Dockerfile'] }} .
+          echo "Tagging image: ${{ my_image['image'] }}"
+          docker tag ${{ my_image['image'] }}:latest $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image['image'] }}:latest
+          echo "Pushing image: ${{ my_image['image'] }}"
+          docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image['image'] }}:latest
         done
         
     - id: 'auth2'
