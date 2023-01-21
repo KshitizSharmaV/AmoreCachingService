@@ -7,8 +7,9 @@ from Gateways.LikesDislikesGateway import LikesDislikes_fetch_userdata_from_fire
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis, MatchUnmatch_get_match_unmatch_nomatch_for_user
 from Gateways.RecommendationEngine.BuildRecommendations import RecommendationSystem
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
 
+logger = configure_logger(__name__)
 app_get = Blueprint('appGet', __name__)
 
 # Get Profiles using their IDs
@@ -141,7 +142,7 @@ def load_match_unmatch_profiles():
             logger.info(f"MatchUnmatch:{userId}:{fromCollection} fetched {len(profiles_array_future)} profiles")
         else:
             profiles_array_future = []
-            logger.warning(f"MatchUnmatch:{userId}:{fromCollection} NO PROFILES TO BE FETCHED")
+            logger.warning(f"MatchUnmatch:{userId}:{fromCollection} no profiles to be fetched")
         return json.dumps(profiles_array_future, indent=4, sort_keys=True, default=str)
     except Exception as e:
         logger.exception(f"{userId} unable to load {fromCollection} for user")

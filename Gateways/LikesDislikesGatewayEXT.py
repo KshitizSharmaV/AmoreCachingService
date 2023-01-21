@@ -4,8 +4,9 @@ import time
 import asyncio
 from redis import Redis
 from ProjectConf.RedisConf import redis_client
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
 
+logger = configure_logger(__name__)
 
 async def LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=None, childCollectionName=None,
                                                               swipeStatusBetweenUsers=None,

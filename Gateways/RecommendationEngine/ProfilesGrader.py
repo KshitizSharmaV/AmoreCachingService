@@ -8,7 +8,8 @@ from redis import Redis
 
 from ProjectConf.FirestoreConf import async_db
 from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher

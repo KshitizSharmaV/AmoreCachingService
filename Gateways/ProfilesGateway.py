@@ -5,8 +5,9 @@ from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
 from Utilities.DictOps import ignore_none
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 from ProjectConf.RedisConf import redis_client
-from Utilities.LogSetup import logger
 from ProjectConf.FirestoreConf import async_db
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 async def ProfilesGateway_write_one_profile_to_cache(profile: dict = None):
     try:

@@ -21,7 +21,8 @@ from logging.handlers import TimedRotatingFileHandler
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles
 
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 def on_create_or_update_profile(document):
     try:

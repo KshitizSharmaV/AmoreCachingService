@@ -8,7 +8,9 @@ from ProjectConf.RedisConf import redis_client, try_creating_fcm_index_for_redis
 from ProjectConf.FirestoreConf import db
 from tenacity import Retrying, RetryError, stop_after_attempt, wait_exponential
 
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
+
+logger = configure_logger(__name__)
 
 amoreicon_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsUg-k2/view?usp=sharing"
 

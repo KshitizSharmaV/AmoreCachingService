@@ -5,10 +5,10 @@ import logging.config
 import json
 from appGet import app_get
 from appSet import app_set
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
 
 app = Flask(__name__)
-
+logger = configure_logger(__name__)
 app.register_blueprint(app_get)
 app.register_blueprint(app_set)
 

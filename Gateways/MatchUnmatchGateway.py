@@ -4,7 +4,6 @@ from datetime import datetime
 import time
 from google.cloud import firestore
 
-from Utilities.LogSetup import logger
 from ProjectConf.FirestoreConf import async_db
 
 from Gateways.RecentChatsGateway import RecentChats_Unmatch_Delete_Chat
@@ -13,6 +12,10 @@ from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 from Gateways.NotificationGateway import Notification_design_and_multicast
 
 from ProjectConf.RedisConf import redis_client
+
+from Utilities.LogSetup import configure_logger
+
+logger = configure_logger(__name__)
 
 async def MatchUnmatch_get_match_unmatch_nomatch_for_user(userId: str):
     return await asyncio.gather(*[

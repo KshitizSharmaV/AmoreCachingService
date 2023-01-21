@@ -18,8 +18,8 @@ from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import QueryBuilder, Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles, Geoservice_calculate_geo_hash_from_radius
 from Gateways.LikesDislikesGateway import LikesDislikes_get_profiles_already_seen_by_id
 from ProjectConf.AsyncioPlugin import run_coroutine
-from Utilities.LogSetup import logger
-
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 class ProfilesFetcher:
     """

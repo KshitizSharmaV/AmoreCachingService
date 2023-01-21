@@ -1,9 +1,9 @@
 import asyncio
-
-from Utilities.LogSetup import logger
 from ProjectConf.FirestoreConf import async_db
-
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
+from Utilities.LogSetup import configure_logger
+
+logger = configure_logger(__name__)
 
 
 # after unmatch call this function, to remove profiles from recentchats too

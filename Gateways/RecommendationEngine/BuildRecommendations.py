@@ -6,7 +6,9 @@ from redis import Redis
 from Gateways.RecommendationEngine.ProfilesGrader import ProfilesGrader
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.AsyncioPlugin import run_coroutine
-from Utilities.LogSetup import logger
+
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 class RecommendationSystem:
     """

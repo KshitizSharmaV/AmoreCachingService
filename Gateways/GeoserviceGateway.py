@@ -3,7 +3,8 @@ from Utilities.DictOps import ignore_none
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import QueryBuilder, Profile
 from ProjectConf.RedisConf import redis_client
 from redis.commands.search.query import Query
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 # Filter on Prefernces:
 #### radiusDistance Preference: Get all Profiles Wthin Radius ?

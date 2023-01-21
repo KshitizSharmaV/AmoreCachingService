@@ -1,10 +1,10 @@
 import asyncio
 from google.cloud import firestore
-
 from ProjectConf.FirestoreConf import async_db, db
-from Utilities.LogSetup import logger
-
+from Utilities.LogSetup import configure_logger
 from Gateways.LikesDislikesGatewayEXT import LikesDislikes_delete_record_from_redis
+
+logger = configure_logger(__name__)
 
 async def Rewind_task_function(current_user_id: str = None, swiped_user_id: str = None, swipeStatusBetweenUsers=None):
     """
@@ -67,7 +67,7 @@ async def Rewind_received_swipe_task(current_user_id: str = None, swiped_user_id
     except Exception as e:
         logger.exception(e)
         return False
-    return
+    
 
 def get_last_given_swipe_from_firestore(current_user_id):
     last_swipe_doc = db.collection('LikesDislikes').document(current_user_id).collection('Given').order_by(u'timestamp', direction=firestore.Query.DESCENDING).limit(1)

@@ -16,7 +16,8 @@ from ProjectConf.FirestoreConf import db, async_db
 from ProjectConf.AsyncioPlugin import run_coroutine
 from google.cloud import firestore
 from Gateways.NotificationGateway import Notification_store_fcm_token_in_redis
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 # Handles fcmtoken update in firestore
 def fcm_token_update_handler(user_id=None):

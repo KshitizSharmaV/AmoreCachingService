@@ -16,7 +16,8 @@ from ProjectConf.AsyncioPlugin import run_coroutine
 from MessagingService.Helper import *
 from Gateways.NotificationGateway import Notification_design_and_multicast
 from Gateways.GeoserviceGateway import GeoService_get_fitered_profiles_on_params
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 async def send_message_notification(chat_data_for_other_user=None):
 

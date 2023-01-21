@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from ProjectConf.AsyncioPlugin import run_coroutine
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
 
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
 from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
@@ -11,7 +11,9 @@ from Gateways.GeoserviceGateway import GeoService_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 
+logger = configure_logger(__name__)
 app_set = Blueprint('appSet', __name__)
+
 
 # store_likes_dislikes_superlikes store likes, dislikes and superlikes in own user id and other profile being acted on
 @app_set.route('/storelikesdislikesGate', methods=['POST'])

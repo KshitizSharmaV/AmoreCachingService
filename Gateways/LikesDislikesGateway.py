@@ -2,7 +2,7 @@ from gc import collect
 import asyncio
 
 from ProjectConf.AsyncioPlugin import run_coroutine
-from Utilities.LogSetup import logger
+from Utilities.LogSetup import configure_logger
 from Gateways.MatchUnmatchGateway import MatchUnmatch_check_match_between_users
 from Gateways.LikesDislikesGatewayEXT import LikesDislikes_fetch_userdata_from_firebase_or_redis, \
     LikesDislikes_async_store_swipe_task
@@ -18,7 +18,7 @@ The data stored with key is a list of ProfileIds who have liked, disliked or sup
 ################################################
 '''
 
-
+logger = configure_logger(__name__)
 # Store likesdislikes data in firestore: We store this swipe at multiple places which will allows easy logic building
 async def LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=None, swipedUserId=None,
                                                                        swipeStatusBetweenUsers=None,

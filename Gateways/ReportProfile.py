@@ -2,6 +2,8 @@ import json
 import time
 from ProjectConf.FirestoreConf import db
 from ProjectConf.RedisConf import redis_client
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 # TODO fix this function - remove Geoservice
 def Report_profile_task(current_user_id=None, reported_profile_id=None, reason_given=None, description_given=None):
