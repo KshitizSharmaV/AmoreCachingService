@@ -60,7 +60,7 @@ jobs:
       env:
         GIT_TAG: latest
       run: |-
-        for my_image in ${{ matrix.my_images }}
+        for my_image in ${{ matrix.my_images }};
         do
           echo "Building image: ${{ my_image['image'] }}"
           docker build -t ${{ my_image['image'] }}:latest -f ${{ my_image['Dockerfile'] }} .
