@@ -1,4 +1,4 @@
-name: Build and Push Caching Service to GKE
+name: Build and Push Common Services to GKE
 
 on:
   workflow_dispatch:
@@ -8,9 +8,14 @@ env:
   GAR_LOCATION: ${{ secrets.ZONE_NAME }}
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.ZONE_NAME }}
-  DEPLOYMENT_NAME: deployment.yaml
+  DEPLOYMENT_NAME: common_deployment.yaml
   REPOSITORY: us-central1-docker.pkg.dev 
-  IMAGE: caching-api
+  IMAGE1: profiles-redis
+  DOCKERFILE1: Dockerfile_ProfileRedis
+  IMAGE2: notification
+  DOCKERFILE2: Dockerfile_notification
+  IMAGE3: messaging
+  DOCKERFILE3: Dockerfile_messaging
   USE_GKE_GCLOUD_AUTH_PLUGIN: true
 
 jobs:
@@ -22,6 +27,16 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
+
+    strategy:
+      matrix:
+        my_images: 
+          - image: $IMAGE1
+            Dockerfile: $DOCKERFILE1
+          - image: $IMAGE2
+            Dockerfile: $DOCKERFILE2
+          - image: $IMAGE3
+            Dockerfile: $DOCKERFILE3
 
     steps:
     - name: Checkout
@@ -35,21 +50,25 @@ jobs:
       uses: 'google-github-actions/auth@v0'
       with:
         credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
-    
-    - name: Build Docker Image
-      run: docker build -t $IMAGE:latest .
 
     - name: Configure Docker Client
       run: |-
         gcloud auth configure-docker --quiet
         gcloud auth configure-docker $REPOSITORY --quiet
     
-    - name: Push Docker Image to Artifact Registry
+    - name: Build and Push Docker Image to Artifact Registry
       env:
         GIT_TAG: latest
       run: |-
-        docker tag $IMAGE:latest $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
-        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        for my_image in ${{ matrix.my_images }}
+        do
+          echo "Building image: ${{ my_image.image }}"
+          docker build -t ${{ my_image.image }}:latest -f ${{ my_image.Dockerfile }} .
+          echo "Tagging image: ${{ my_image.image }}"
+          docker tag ${{ my_image.image }}:latest $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image.image }}:latest
+          echo "Pushing image: ${{ my_image.image }}"
+          docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image.image }}:latest
+        done
         
     - id: 'auth2'
       uses: 'google-github-actions/auth@v0'

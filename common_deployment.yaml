@@ -1,0 +1,72 @@
+# deployment.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: common-services
+  labels:
+    app: common-services
+spec:
+  restartPolicy: Always
+  containers:
+    - name: messaging
+      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/messaging:latest    
+      resources:
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+        requests:
+          memory: "256Mi"
+          cpu: "250m"
+      env:
+        - name: FIREBASE_CRED
+          valueFrom:
+            secretKeyRef:
+              name: firebase-secret
+              key: stagingServiceAccountKey.json
+
+    - name: notification
+      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/notification:latest
+      resources:
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+        requests:
+          memory: "256Mi"
+          cpu: "250m"
+      env:
+        - name: FIREBASE_CRED
+          valueFrom:
+            secretKeyRef:
+              name: firebase-secret
+              key: stagingServiceAccountKey.json
+
+    - name: profiles-redis
+      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/profiles-redis:latest
+      resources:
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+        requests:
+          memory: "256Mi"
+          cpu: "250m"
+      env:
+        - name: FIREBASE_CRED
+          valueFrom:
+            secretKeyRef:
+              name: firebase-secret
+              key: stagingServiceAccountKey.json
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: common-services
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: common-services
+  selector:
+    app: common-services
