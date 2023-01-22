@@ -6,7 +6,7 @@ metadata:
   labels:
     app: caching
 spec:
-  replicas: 3
+  replicas: 1 
   selector:
     matchLabels:
       app: caching

@@ -1,7 +1,5 @@
 import flask
-import sys
 from flask import Flask
-import logging.config
 import json
 from appGet import app_get
 from appSet import app_set
@@ -12,7 +10,6 @@ logger = configure_logger(__name__)
 app.register_blueprint(app_get)
 app.register_blueprint(app_set)
 
-import json
 @app.route("/test", methods=["Get"])
 def test():
     try:
@@ -27,9 +24,3 @@ def test():
 if __name__ == '__main__':
     app.run(host="127.0.0.1", port=5050, debug=True)
     logger.info("Starting Caching Service")
-
-
-
-
-
-
