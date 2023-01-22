@@ -1,25 +1,10 @@
 import pytest
-import asyncio
-from google.cloud import firestore
 from Gateways.RewindGateway import Rewind_task_function, Rewind_given_swipe_task, Rewind_received_swipe_task
-from Gateways import RewindGateway
 from ProjectConf.FirestoreConf import async_db, db
-from unittest.mock import patch, AsyncMock
-from redis.client import Redis
-from app import app
-from unittest.mock import MagicMock
-import asynctest
-
+from unittest.mock import patch
 from Tests.Utilities.test_base import async_mock_child
-
 import unittest.mock
 import logging
-
-# Create a mock object for the logger
-mock_log = unittest.mock.Mock()
-
-# Configure the mock object to redirect logs to stdout
-mock_log.addHandler(logging.StreamHandler())
 
 @pytest.mark.asyncio
 async def test_Rewind_task_function_success():

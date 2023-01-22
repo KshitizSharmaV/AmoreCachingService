@@ -19,6 +19,13 @@ async def async_mock_child(return_value=None):
     "Used to await mock object response from functions"
     return return_value
 
+data = {}
+def redis_test_set(key, val):
+    data[key] = val
+
+def redis_test_get(key):
+    return data[key]
+
 @pytest.fixture
 def client():
     # Set up the Flask app and test client
