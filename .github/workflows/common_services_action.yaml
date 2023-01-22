@@ -10,12 +10,6 @@ env:
   GKE_ZONE: ${{ secrets.ZONE_NAME }}
   DEPLOYMENT_NAME: common_deployment.yaml
   REPOSITORY: us-central1-docker.pkg.dev 
-  IMAGE1: profiles-redis
-  DOCKERFILE1: Dockerfile_ProfileRedis
-  IMAGE2: notification
-  DOCKERFILE2: Dockerfile_notification
-  IMAGE3: messaging
-  DOCKERFILE3: Dockerfile_messaging
   USE_GKE_GCLOUD_AUTH_PLUGIN: true
 
 jobs:
@@ -31,12 +25,12 @@ jobs:
     strategy:
       matrix:
         my_images:
-          - image: ${{ IMAGE1 }}
-            Dockerfile: ${{ DOCKERFILE1 }}
-          - image: ${{ IMAGE2 }}
-            Dockerfile: ${{ DOCKERFILE2 }}
-          - image: ${{ IMAGE3 }}
-            Dockerfile: ${{ DOCKERFILE3 }}
+          - image: profiles-redis
+            Dockerfile: Dockerfile_ProfileRedis
+          - image: notification
+            Dockerfile: Dockerfile_notification
+          - image: messaging
+            Dockerfile: Dockerfile_messaging
 
 
     steps:
