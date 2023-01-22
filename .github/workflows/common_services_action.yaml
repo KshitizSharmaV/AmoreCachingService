@@ -55,15 +55,12 @@ jobs:
       env:
         GIT_TAG: latest
       run: |-
-        for my_image in ${{ matrix.my_images }};
-        do
-          echo "Building image: ${{ my_image['image'] }}"
-          docker build -t ${{ my_image['image'] }}:latest -f ${{ my_image['Dockerfile'] }} .
-          echo "Tagging image: ${{ my_image['image'] }}"
-          docker tag ${{ my_image['image'] }}:latest $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image['image'] }}:latest
-          echo "Pushing image: ${{ my_image['image'] }}"
-          docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ my_image['image'] }}:latest
-        done
+        echo "Building image: ${{ matrix.my_images.image }}"
+        docker build -t ${{ matrix.my_images.image }}:latest -f ${{ matrix.my_images.Dockerfile }} .
+        echo "Tagging image: ${{ matrix.my_images.image }}"
+        docker tag ${{ matrix.my_images.image }}:latest $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
+        echo "Pushing image: ${{ matrix.my_images.image }}"
+        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
         
     - id: 'auth2'
       uses: 'google-github-actions/auth@v0'
