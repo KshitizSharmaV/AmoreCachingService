@@ -28,9 +28,9 @@ jobs:
           - image: profiles-redis
             Dockerfile: Dockerfile_ProfileRedis
           - image: notification
-            Dockerfile: Dockerfile_notification
+            Dockerfile: Dockerfile_Notifications
           - image: messaging
-            Dockerfile: Dockerfile_messaging
+            Dockerfile: Dockerfile_Messaging
 
 
     steps:
