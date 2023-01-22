@@ -2,14 +2,15 @@ import pytest
 import asyncio
 from google.cloud import firestore
 from Gateways.RewindGateway import Rewind_task_function, Rewind_given_swipe_task, Rewind_received_swipe_task
+from Gateways import RewindGateway
 from ProjectConf.FirestoreConf import async_db, db
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from redis.client import Redis
 from app import app
 from unittest.mock import MagicMock
 import asynctest
 
-from Tests.Utilities.test_base import async_mock_parent, async_mock_child
+from Tests.Utilities.test_base import async_mock_child
 
 import unittest.mock
 import logging
@@ -39,41 +40,40 @@ async def test_Rewind_task_function_failure():
         assert future ==False
 
 @pytest.mark.asyncio
-async def test_Rewind_given_swipe_task_sucess(mocker):
+async def test_Rewind_given_swipe_task_sucess():
     with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
         with patch('Gateways.RewindGateway.async_db') as mock_db:
-            result = await Rewind_given_swipe_task(current_user_id= "user1", 
-                                    swiped_user_id= "user2", 
-                                    swipeStatusBetweenUsers="like")
-            # Assert that the function returns True
+            mock_db.collection.return_value.document.return_value.collection.return_value.document.return_value.delete.side_effect = async_mock_child
+            result = await Rewind_given_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like")
             assert result == True
-            
+
+
 @pytest.mark.asyncio
 async def test_Rewind_given_swipe_task_failure():
     with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
-        mock_f.side_effect = Exception("Can't get profile")
-        future= await Rewind_given_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like")
-        assert future==False
+        with patch('Gateways.RewindGateway.async_db') as mock_db:
+            mock_db.collection.return_value.document.return_value.collection.return_value.document.return_value.delete.side_effect = async_mock_child
+            mock_f.side_effect = Exception("Raise an exception")
+            result = await Rewind_given_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like")
+            assert result == False
 
 
 @pytest.mark.asyncio
 async def test_Rewind_received_swipe_task_sucess():
     with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
-        with patch('ProjectConf.FirestoreConf.async_db') as mock_db:
-            firestore_mock = mock_db.return_value
-            firestore_mock.collection().document().collection().document().delete.return_value = asynctest.CoroutineMock()
-            mock_f.return_value =mock_f({"user_id": "user1", "idToBeDeleted": "user2", "childCollectionName":"Given","swipeStatusBetweenUsers":"swipeStatusBetweenUsers"})
-            result = await Rewind_received_swipe_task(current_user_id= "user1", 
-                            swiped_user_id= "user2", 
-                            swipeStatusBetweenUsers="like")
+        with patch('Gateways.RewindGateway.async_db') as mock_db:
+            mock_db.collection.return_value.document.return_value.collection.return_value.document.return_value.delete.side_effect = async_mock_child
+            result = await Rewind_received_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like")
             assert result == True
             
 
 @pytest.mark.asyncio
 async def test_Rewind_received_swipe_task_failure():
     with patch('Gateways.RewindGateway.LikesDislikes_delete_record_from_redis') as mock_f:
-        mock_f.side_effect = Exception("Can't get profile")
-        future= await Rewind_received_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like")
-        assert future==False
+        with patch('Gateways.RewindGateway.async_db') as mock_db:
+            mock_db.collection.return_value.document.return_value.collection.return_value.document.return_value.delete.side_effect = async_mock_child
+            mock_f.side_effect = Exception("Raise an exception")
+            result= await Rewind_received_swipe_task(current_user_id= "user1", swiped_user_id= "user2", swipeStatusBetweenUsers="like")
+            assert result == False
         
         
