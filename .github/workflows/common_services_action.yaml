@@ -31,12 +31,12 @@ jobs:
     strategy:
       matrix:
         my_images:
-          - image: ${{ env.IMAGE1 }}
-            Dockerfile: ${{ env.DOCKERFILE1 }}
-          - image: ${{ env.IMAGE2 }}
-            Dockerfile: ${{ env.DOCKERFILE2 }}
-          - image: ${{ env.IMAGE3 }}
-            Dockerfile: ${{ env.DOCKERFILE3 }}
+          - image: ${{ IMAGE1 }}
+            Dockerfile: ${{ DOCKERFILE1 }}
+          - image: ${{ IMAGE2 }}
+            Dockerfile: ${{ DOCKERFILE2 }}
+          - image: ${{ IMAGE3 }}
+            Dockerfile: ${{ DOCKERFILE3 }}
 
 
     steps:
