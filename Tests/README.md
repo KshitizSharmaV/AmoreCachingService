@@ -19,4 +19,5 @@ pytest --cov=app --cov=appGet --cov=appSet --cov-report xml:cov.xml -v Tests -W 
 * To See coverage for all 
 ```
 pytest --cov=. --cov-report term -v Tests
+pytest --cov=. --cov-report xml:cov.xml -v Tests -W ignore
 ```

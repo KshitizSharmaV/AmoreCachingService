@@ -5,14 +5,16 @@ import traceback
 import pandas as pd
 from google.cloud import firestore
 from redis import Redis
-from logging import Logger
+
 from ProjectConf.FirestoreConf import async_db
 from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 # IMPORTS FOR TEST
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.RedisConf import redis_client
-from ProjectConf.LoggerConf import logger as logger1
+
 
 
 class ProfilesGrader:
@@ -25,7 +27,6 @@ class ProfilesGrader:
     - All Scores aggregator
     """
     current_user_data: dict
-    logger: Logger
     weights: dict = {
         "popularity_score": 0.45,
         "profile_completion_score": 0.25,
@@ -48,10 +49,9 @@ class ProfilesGrader:
     #     "matchingScoreWeighted": 0.30
     # }
 
-    def __init__(self, current_user_data: dict, other_users_data: dict, logger):
+    def __init__(self, current_user_data: dict, other_users_data: dict):
         self.current_user_data = current_user_data
         self.other_users_data = other_users_data
-        self.logger = logger
 
     async def get_profiles_from_subcollection_firestore(self, collectionName=None, userId=None,
                                                         collectionNameChild=None,
@@ -84,7 +84,7 @@ class ProfilesGrader:
                     redis_client.zadd(redis_key, temp_dict, xx=True)
             return user_recs if user_recs else list(temp_dict.keys())
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def profile_ids_which_liked_user(self, user_id: str):
@@ -92,7 +92,7 @@ class ProfilesGrader:
             return await self.get_profile_ids_for_likes_dislikes_redis(user_id=user_id, sub_collection="Received",
                                                                        swipe_type="Likes")
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def profile_ids_which_disliked_user(self, user_id: str):
@@ -100,7 +100,7 @@ class ProfilesGrader:
             return await self.get_profile_ids_for_likes_dislikes_redis(user_id=user_id, sub_collection="Received",
                                                                        swipe_type="Dislikes")
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def profile_ids_which_superliked_user(self, user_id: str):
@@ -108,7 +108,7 @@ class ProfilesGrader:
             return await self.get_profile_ids_for_likes_dislikes_redis(user_id=user_id, sub_collection="Received",
                                                                        swipe_type="Superlikes")
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def profile_ids_liked_by_user(self, user_id: str):
@@ -116,7 +116,7 @@ class ProfilesGrader:
             return await self.get_profile_ids_for_likes_dislikes_redis(user_id=user_id, sub_collection="Given",
                                                                        swipe_type="Likes")
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def profile_ids_disliked_by_user(self, user_id: str):
@@ -124,7 +124,7 @@ class ProfilesGrader:
             return await self.get_profile_ids_for_likes_dislikes_redis(user_id=user_id, sub_collection="Given",
                                                                        swipe_type="Dislikes")
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def profile_ids_superliked_by_user(self, user_id: str):
@@ -132,7 +132,7 @@ class ProfilesGrader:
             return await self.get_profile_ids_for_likes_dislikes_redis(user_id=user_id, sub_collection="Given",
                                                                        swipe_type="Superlikes")
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
             print(traceback.format_exc())
 
     async def calculate_popularity_score(self, user_id=None):
@@ -153,7 +153,7 @@ class ProfilesGrader:
             # logger.info(f"{userId}: Successfully calculated profile popularity score")
             return (4 * len(superliked_by_list)) + (2 * len(liked_by_list)) - len(disliked_by_list)
         except Exception as e:
-            self.logger.error(f"{user_id}: Unable to calculate popularity score")
+            logger.error(f"{user_id}: Unable to calculate popularity score")
             print(traceback.format_exc())
             return
 
@@ -162,7 +162,7 @@ class ProfilesGrader:
         try:
             return (float(user_profile['profileCompletion']) / 100) * 10
         except Exception as e:
-            self.logger.error(f"{self.current_user_data['id']}: Unable to get profile completion score")
+            logger.error(f"{self.current_user_data['id']}: Unable to get profile completion score")
             print(traceback.format_exc())
             return
 
@@ -181,7 +181,7 @@ class ProfilesGrader:
             # logger.error(f"{userId}: Successfully calculated matching score")
             return random.uniform(0, 1)
         except Exception as e:
-            self.logger.error(f"{user_id}: Unable to get matching score")
+            logger.error(f"{user_id}: Unable to get matching score")
             print(traceback.format_exc())
             return
 
@@ -198,7 +198,7 @@ class ProfilesGrader:
             user_super_like_list = await self.profile_ids_superliked_by_user(user_id=user_id)
             return (4 * len(user_super_like_list)) + (2 * len(user_like_list)) + len(user_dislike_list)
         except Exception as e:
-            self.logger.error(f"{user_id}: Unable to calculate the activity score")
+            logger.error(f"{user_id}: Unable to calculate the activity score")
             print(traceback.format_exc())
             return
 
@@ -219,24 +219,24 @@ class ProfilesGrader:
             #                     "profile_completion_score": profile_completion_score,
             #                     "activity_score": activity_score,
             #                     "matchingScore": matchingScore}
-            self.logger.info(f"{user_profile.get('id')}: Successfully calculated total profile score")
+            logger.info(f"{user_profile.get('id')}: Successfully calculated total profile score")
             return all_profile_scores
         except Exception as e:
-            self.logger.error(f"{user_profile.get('id')}: Unable to calculate total profile completion score")
+            logger.error(f"{user_profile.get('id')}: Unable to calculate total profile completion score")
             print(traceback.format_exc())
             return
 
     async def get_no_of_matches_and_unmatches_for_user(self, user_id):
         try:
             data = await asyncio.gather(*[
-                MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=user_id, childCollectionName=fromCollection, logger=self.logger)
+                MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=user_id, childCollectionName=fromCollection)
                 for
                 fromCollection in ['Match', 'Unmatch']])
             matches, unmatches = len(data[0]), len(data[1])
             return {"profileId": user_id, "matches": matches, "unmatches": unmatches}
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.warning("MatchUnmatch failing in profile grader")
+            logger.exception(e)
+            logger.warning("MatchUnmatch failing in profile grader")
             print(traceback.format_exc())
 
     async def get_normalised_graded_profiles_df(self):
@@ -272,21 +272,20 @@ class ProfilesGrader:
 
             return normalized_all_profile_scores_df
         except Exception as e:
-            self.logger.error(f"Error occurred in Profile Grader")
-            self.logger.exception(e)
+            logger.error(f"Error occurred in Profile Grader")
+            logger.exception(e)
             print(traceback.format_exc())
 
 
 if __name__ == "__main__":
     profiles_fetcher = ProfilesFetcher(current_user_id="nVA4bAkUWubnEFGTVdO4IVUDDW02",
-                                       current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[], logger=logger1)
+                                       current_user_filters={"radiusDistance": 50}, profiles_already_in_deck=[])
     current_user_data = profiles_fetcher.fetch_current_user_data()
     # Elimination process is over
     other_users_data = profiles_fetcher.get_final_fetched_profiles()
 
     # Eliminated data is ranked based on scores
     profile_grader = ProfilesGrader(current_user_data=current_user_data,
-                                    other_users_data=other_users_data,
-                                    logger=logger1)
+                                    other_users_data=other_users_data)
     normalised_other_users_df = asyncio.run(profile_grader.get_normalised_graded_profiles_df())
     print(normalised_other_users_df)

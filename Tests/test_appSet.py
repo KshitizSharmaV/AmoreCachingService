@@ -1,28 +1,15 @@
 import pytest
 from unittest.mock import patch
 from app import app
-from Tests.test_base import async_mock_parent, async_mock_child
-from ProjectConf.FirestoreConf import async_db, db
-from Gateways.GradingScoresGateway import store_graded_profile_in_firestore_route
+from Tests.Utilities.test_base import async_mock_child
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
-from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
-from Gateways.RewindGateway import Rewind_task_function, get_last_given_swipe_from_firestore
-from Gateways.ReportProfile import Report_profile_task
-from Gateways.GeoserviceGateway import GeoService_store_profiles
-from Gateways.MessagesGateway import match_two_profiles_for_direct_message
-from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
-
-@pytest.fixture
-def client():
-    # Set up the Flask app and test client
-    app.config['TESTING'] = True
-    client = app.test_client()
-    yield client
+from Tests.Utilities.test_base import client
         
 def test_store_likes_dislikes_superlikes(client):
     
     # Test successful request
-    with patch.object(LikesDislikes_async_store_likes_dislikes_superlikes_for_user, '__call__', return_value=True):
+    with patch('appSet.LikesDislikes_async_store_likes_dislikes_superlikes_for_user') as store_likes_dislikes:
+        store_likes_dislikes.return_value = True
         response = client.post('/storelikesdislikesGate', json={
             'currentUserId': 'user1',
             'swipeInfo': 'like',
@@ -34,7 +21,8 @@ def test_store_likes_dislikes_superlikes(client):
     
 def test_unmatch(client):
     # Test successful request
-    with patch.object(MatchUnmatch_unmatch_two_users, '__call__', return_value=True):
+    with patch('appSet.MatchUnmatch_unmatch_two_users') as unmatch_two_users:
+        unmatch_two_users.return_value = True
         response = client.post('/unmatchgate', json={
             'current_user_id': 'user1',
             'other_user_id': 'user2'
@@ -98,25 +86,21 @@ async def test_store_profile_failure(client):
 
 @pytest.mark.asyncio
 async def test_report_profile_success(client):
-    current_user_id = 'UserId1'
-    reported_profile_id = 'UserId2'
-    reason_given = 'Test Report'
-    description_given = 'Test Report'
-        
+   
     # Set up the mocks
     with patch('appSet.Report_profile_task') as report_profile_task:
         report_profile_task.return_value = True
         with patch('appSet.MatchUnmatch_unmatch_two_users') as unmatch_two_users:
             unmatch_two_users.return_value = await async_mock_child(return_value=True)
-        data = {
-            'current_user_id' : 'UserId1',
-            'reported_profile_id' : 'UserId2',
-            'reason_given': 'Test Report',
-            'description_given': 'Test Report',
-        }
-        response = client.post('/reportprofilegate', json=data)
-        # Check the response
-        assert response.status_code == 200
+            data = {
+                'current_user_id' : 'UserId1',
+                'other_user_id' : 'UserId2',
+                'reasonGiven': 'Test Report',
+                'descriptionGiven': 'Test Report',
+            }
+            response = client.post('/reportprofilegate', json=data)
+            # Check the response
+            assert response.status_code == 200
         
 
 @pytest.mark.asyncio
@@ -129,6 +113,7 @@ async def test_report_profile_failure(client):
     
     # Set up the mocks
     with patch('appSet.Report_profile_task') as report_profile_task:
+        report_profile_task.return_value = True
         with patch('appSet.MatchUnmatch_unmatch_two_users') as unmatch_two_users:
             unmatch_two_users.side_effect = Exception("Can't unmatch users")
             data = {

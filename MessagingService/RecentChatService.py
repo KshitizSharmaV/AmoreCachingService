@@ -11,23 +11,13 @@ import logging
 import asyncio
 from datetime import datetime
 from dataclasses import asdict, dataclass
-from logging.handlers import TimedRotatingFileHandler
 from ProjectConf.FirestoreConf import db
 from ProjectConf.AsyncioPlugin import run_coroutine
 from MessagingService.Helper import *
 from Gateways.NotificationGateway import Notification_design_and_multicast
 from Gateways.GeoserviceGateway import GeoService_get_fitered_profiles_on_params
-
-# Log Settings
-LOG_FILENAME = datetime.now().strftime("%H%M_%d%m%Y") + ".log"
-if not os.path.exists('Logs/MessagingService/'):
-    os.makedirs('Logs/MessagingService/')
-logHandler = TimedRotatingFileHandler(f"Logs/MessagingService/{LOG_FILENAME}",when="midnight")
-logFormatter = logging.Formatter(f'%(asctime)s %(levelname)s %(threadName)s : %(message)s')
-logHandler.setFormatter(logFormatter)
-logger = logging.getLogger(f'Logs/MessagingService/{LOG_FILENAME}')
-logger.addHandler(logHandler)
-logger.setLevel(logging.INFO)
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 async def send_message_notification(chat_data_for_other_user=None):
 
@@ -41,9 +31,7 @@ async def send_message_notification(chat_data_for_other_user=None):
         'aps_category':'Message',
         'data':{'data':'none'}
     }
-    await Notification_design_and_multicast(user_id=chat_data_for_other_user.toId, 
-                                    pay_load=pay_load, logger=logger,
-                                    dry_run=False)
+    await Notification_design_and_multicast(user_id=chat_data_for_other_user.toId, pay_load=pay_load,dry_run=False)
 
 async def message_update_handler(given_user_id=None, other_user_id=None, chat_data_for_other_user=None):
     try:
@@ -77,7 +65,7 @@ def recent_chat_update_handler(given_user_id=None):
             chat_data = chat.to_dict()
             chat_data = ChatConversation.from_dict(chat_data)
             # Get the data for other user whose chat needs to be updated
-            profile_list = GeoService_get_fitered_profiles_on_params(profileId=other_user_id, logger=logger)
+            profile_list = GeoService_get_fitered_profiles_on_params(profileId=other_user_id)
             if len(profile_list)==0:
                 # If profile doesn't exist in redis
                 given_user_data =  db.collection("Profiles").document(given_user_id).get().to_dict()

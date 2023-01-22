@@ -1,15 +1,7 @@
 import pytest
 import json
 from app import app
-
-
-@pytest.fixture
-def client():
-    # Set up the Flask app and test client
-    app.config['TESTING'] = True
-    client = app.test_client()
-    yield client
-        
+from Tests.Utilities.test_base import client
 
 def test_test_route(client):
     response = client.get('/test')

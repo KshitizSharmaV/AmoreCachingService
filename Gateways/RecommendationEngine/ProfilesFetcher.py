@@ -8,20 +8,18 @@ import time
 import traceback
 from typing import Set
 from redis import Redis
-from logging import Logger
 from pprint import pprint
-from functools import lru_cache
 from dataclasses import asdict
 from Utilities.DictOps import ignore_none
 from ProjectConf.FirestoreConf import db
 from ProjectConf.RedisConf import redis_client, try_creating_profile_index_for_redis, check_redis_index_exists
-from ProjectConf.LoggerConf import logger as logger1
 from redis.commands.search.query import Query
 from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import QueryBuilder, Profile
 from Gateways.GeoserviceGateway import GeoService_store_profiles, Geoservice_calculate_geo_hash_from_radius
 from Gateways.LikesDislikesGateway import LikesDislikes_get_profiles_already_seen_by_id
 from ProjectConf.AsyncioPlugin import run_coroutine
-
+from Utilities.LogSetup import configure_logger
+logger = configure_logger(__name__)
 
 class ProfilesFetcher:
     """
@@ -34,25 +32,23 @@ class ProfilesFetcher:
     current_user_id: str
     current_user_filters: dict
     profiles_already_seen: Set[str]
-    logger: Logger
     geohash_keys: [str]
     current_user_data: dict
 
-    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str], logger: Logger):
+    def __init__(self, current_user_id: str, current_user_filters: dict, profiles_already_in_deck: [str]):
         self.current_user_id = current_user_id
         self.current_user_filters = current_user_filters
         self.profiles_already_seen = set(profiles_already_in_deck)
         # Exclude own profile from being recommended to self
         self.profiles_already_seen.add(self.current_user_id)
-        self.logger = logger
         self.geohash_keys = ['geohash1', 'geohash2', 'geohash3', 'geohash4', 'geohash5']
 
     def fetch_current_user_data_from_firestore(self) -> dict:
         try:
             return db.collection("Profiles").document(self.current_user_id).get().to_dict()
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def fetch_current_user_data(self) -> dict:
         try:
@@ -61,22 +57,21 @@ class ProfilesFetcher:
                                             dict_factory=ignore_none)
             if not self.current_user_data:
                 self.current_user_data = self.fetch_current_user_data_from_firestore()
-                asyncio.run(GeoService_store_profiles(profile=self.current_user_data,
-                                                      logger=self.logger))
+                asyncio.run(GeoService_store_profiles(profile=self.current_user_data))
             return self.current_user_data
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def fetch_profile_ids_already_seen_by_user(self) -> [str]:
         try:
             profile_ids_already_swiped_by_user = run_coroutine(
-                LikesDislikes_get_profiles_already_seen_by_id(userId=self.current_user_id, childCollectionName="Given", logger=self.logger))
+                LikesDislikes_get_profiles_already_seen_by_id(userId=self.current_user_id, childCollectionName="Given"))
             self.profiles_already_seen = self.profiles_already_seen.union(set(profile_ids_already_swiped_by_user.result()))
             return self.profiles_already_seen
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def add_geohash_filter_for_radius_for_query(self):
         try:
@@ -86,8 +81,8 @@ class ProfilesFetcher:
                 radius=self.current_user_filters.get('radiusDistance'))
             self.current_user_filters[geohash_level] = self.current_user_data.get(geohash_level, '*')
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def build_exclusion_query(self, profile_ids_already_fetched: tuple = None):
         try:
@@ -101,8 +96,8 @@ class ProfilesFetcher:
                 exclusion_query = ""
             return exclusion_query
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
             print(traceback.format_exc())
 
     def build_search_query(self, exclusion_query: str):
@@ -112,16 +107,16 @@ class ProfilesFetcher:
             query = " ".join([query, exclusion_query] if exclusion_query else [query])
             return query
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
             print(traceback.format_exc())
 
     def query_redis_for_profiles(self, query_string: str):
         try:
             return redis_client.ft("idx:profile").search(Query(query_string=query_string).paging(0, 10))
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
             print(traceback.format_exc())
 
     def get_dict_for_redis_query_result(self, result_profile):
@@ -130,8 +125,8 @@ class ProfilesFetcher:
             profile['id'] = profile['id'].replace('profile:', '')
             return profile
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.exception(traceback.format_exc())
+            logger.exception(e)
+            logger.exception(traceback.format_exc())
             print(traceback.format_exc())
 
     def fetch_filtered_profiles_for_user(self, profile_ids_already_fetched: tuple = None) -> dict:
@@ -151,8 +146,8 @@ class ProfilesFetcher:
                              result_profiles.docs}
             return profiles_dict
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
             print(traceback.format_exc())
 
     def get_current_geohash_level(self):
@@ -164,8 +159,8 @@ class ProfilesFetcher:
                     current_geohash_level = geohash_key
             return current_geohash_level
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def reduce_geohash_accuracy(self, geohash: str):
         """
@@ -180,8 +175,8 @@ class ProfilesFetcher:
             else:
                 return f"geohash{str(int(geohash[-1]) - 1)}"
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def reduce_current_geohash_level_in_filters(self, current_geohash_level: str = None):
         # Reduce the geohash level in filters dict, if current geohash level >= geohash 1
@@ -193,8 +188,8 @@ class ProfilesFetcher:
                 if reduced_geohash_level:
                     self.current_user_filters[reduced_geohash_level] = current_geohash[:-1]
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
     def get_final_fetched_profiles(self) -> dict:
         """
@@ -220,8 +215,8 @@ class ProfilesFetcher:
                     self.fetch_filtered_profiles_for_user(profile_ids_already_fetched=profile_ids_already_fetched))
             return final_fetched_profiles
         except Exception as e:
-            self.logger.exception(e)
-            self.logger.error(traceback.format_exc())
+            logger.exception(e)
+            logger.error(traceback.format_exc())
 
 
 if __name__ == "__main__":
@@ -230,8 +225,7 @@ if __name__ == "__main__":
         try_creating_profile_index_for_redis()
     profiles_fetcher = ProfilesFetcher(current_user_id="WbZZuRPhxRf6KL1GFHcNWL2Ydzk1",
                                        current_user_filters={"radiusDistance": 50, "genderPreference": "Male"},
-                                       profiles_already_in_deck=[],
-                                       logger=logger1)
+                                       profiles_already_in_deck=[])
     profiles = profiles_fetcher.get_final_fetched_profiles()
     print(len(profiles))
     # pprint(profiles)
