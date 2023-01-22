@@ -13,8 +13,8 @@ env:
   USE_GKE_GCLOUD_AUTH_PLUGIN: true
 
 jobs:
-  setup-build-publish-deploy:
-    name: Setup, Build, Publish, and Deploy
+  setup-build-publish:
+    name: Setup, Build and Publish
     runs-on: ubuntu-latest
     environment: production
 
@@ -62,21 +62,35 @@ jobs:
         echo "Pushing image: ${{ matrix.my_images.image }}"
         docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
         
-    - id: 'auth2'
-      uses: 'google-github-actions/auth@v0'
-      with:
-        credentials_json: '${{ secrets.COMPUTE_ENGINE_SA_KEY }}'    
+  deploy-to-gke:
+    name: Deploy to GKE
+    needs: setup-build-publish
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
-    - name: Install gke-gcloud-auth-plugin
-      run: |
-        gcloud components list
-        echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
-        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
-        sudo apt update
-        sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin kubectl
-        gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_ZONE
+      - name: Export use-gke-gcloud-auth-plugin
+        run: |
+          export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+          
+      - id: 'auth2'
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.COMPUTE_ENGINE_SA_KEY }}'    
 
-    # Deploy the Docker image to the GKE cluster
-    - name: Deploy
-      run: |-
-        kubectl apply -f $DEPLOYMENT_NAME
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components list
+          echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+          curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+          sudo apt update
+          sudo apt-get install google-cloud-sdk-gke-gcloud-auth-plugin kubectl
+          gcloud container clusters get-credentials $GKE_CLUSTER --region $GKE_ZONE
+
+      # Deploy the Docker image to the GKE cluster
+      - name: Deploy
+        run: |-
+          kubectl apply -f $DEPLOYMENT_NAME
