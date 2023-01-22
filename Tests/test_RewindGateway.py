@@ -3,8 +3,6 @@ from Gateways.RewindGateway import Rewind_task_function, Rewind_given_swipe_task
 from ProjectConf.FirestoreConf import async_db, db
 from unittest.mock import patch
 from Tests.Utilities.test_base import async_mock_child
-import unittest.mock
-import logging
 
 @pytest.mark.asyncio
 async def test_Rewind_task_function_success():
