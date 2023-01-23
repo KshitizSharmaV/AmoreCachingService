@@ -2,8 +2,7 @@ import pytest
 import json
 from unittest.mock import patch
 from app import app
-from Tests.Utilities.test_base import async_mock_parent, async_mock_child
-from Tests.Utilities.test_base import client
+from Tests.Utilities.test_base import client, async_mock_child
 
 
 @pytest.mark.asyncio
