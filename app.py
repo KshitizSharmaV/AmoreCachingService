@@ -18,7 +18,7 @@ def test():
     except Exception as e:
         logger.exception("Failed to get Amore Caching Service Started")
         logger.exception(e)
-    return flask.abort(401, 'An error occured in API /test')
+        return flask.abort(500, 'An error occured in API /test')
 
 
 if __name__ == '__main__':
