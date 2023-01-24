@@ -8,7 +8,7 @@ env:
   GAR_LOCATION: ${{ secrets.ZONE_NAME }}
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.ZONE_NAME }}
-  DEPLOYMENT_NAME: common_deployment.yaml
+  DEPLOYMENT_NAME: common_deployment
   REPOSITORY: us-central1-docker.pkg.dev 
   USE_GKE_GCLOUD_AUTH_PLUGIN: true
 
@@ -58,7 +58,7 @@ jobs:
         echo "Building image: ${{ matrix.my_images.image }}"
         docker build -t ${{ matrix.my_images.image }}:$GIT_TAG -f ${{ matrix.my_images.Dockerfile }} .
         echo "Tagging image: ${{ matrix.my_images.image }} with tag: $GIT_TAG"
-        docker tag ${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG
+        docker tag ${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
         echo "Pushing image: ${{ matrix.my_images.image }}"
         docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG
         
@@ -93,4 +93,6 @@ jobs:
       # Deploy the Docker image to the GKE cluster
       - name: Deploy
         run: |-
-          kubectl apply -f $DEPLOYMENT_NAME
+          kubectl apply -f ${{ DEPLOYMENT_NAME }}.yaml
+          kubectl set image pod/$DEPLOYMENT_NAME messaging=$REPOSITORY/$PROJECT_ID/amore-microservices/messaging:${{ github.sha }} profiles-redis=$REPOSITORY/$PROJECT_ID/amore-microservices/profiles-redis:${{ github.sha }} notification=$REPOSITORY/$PROJECT_ID/amore-microservices/notification:${{ github.sha }}
+          kubectl rollout status pod/$DEPLOYMENT_NAME
