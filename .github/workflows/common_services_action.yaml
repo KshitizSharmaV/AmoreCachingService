@@ -53,14 +53,14 @@ jobs:
     
     - name: Build and Push Docker Image to Artifact Registry
       env:
-        GIT_TAG: latest
+        GIT_TAG: ${{ github.sha }}
       run: |-
         echo "Building image: ${{ matrix.my_images.image }}"
-        docker build -t ${{ matrix.my_images.image }}:latest -f ${{ matrix.my_images.Dockerfile }} .
-        echo "Tagging image: ${{ matrix.my_images.image }}"
-        docker tag ${{ matrix.my_images.image }}:latest $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
+        docker build -t ${{ matrix.my_images.image }}:$GIT_TAG -f ${{ matrix.my_images.Dockerfile }} .
+        echo "Tagging image: ${{ matrix.my_images.image }} with tag: $GIT_TAG"
+        docker tag ${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG
         echo "Pushing image: ${{ matrix.my_images.image }}"
-        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
+        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG
         
   deploy-to-gke:
     name: Deploy to GKE
