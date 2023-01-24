@@ -56,11 +56,11 @@ jobs:
         GIT_TAG: ${{ github.sha }}
       run: |-
         echo "Building image: ${{ matrix.my_images.image }}"
-        docker build -t ${{ matrix.my_images.image }}:$GIT_TAG -f ${{ matrix.my_images.Dockerfile }} .
+        docker build -t ${{ matrix.my_images.image }}:$GIT_TAG -t ${{ matrix.my_images.image }}:latest -f ${{ matrix.my_images.Dockerfile }} .
         echo "Tagging image: ${{ matrix.my_images.image }} with tag: $GIT_TAG"
-        docker tag ${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
+        docker tag ${{ matrix.my_images.image }} $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:latest
         echo "Pushing image: ${{ matrix.my_images.image }}"
-        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }}:$GIT_TAG
+        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/${{ matrix.my_images.image }} --all-tags
         
   deploy-to-gke:
     name: Deploy to GKE
