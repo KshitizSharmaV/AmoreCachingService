@@ -95,5 +95,5 @@ jobs:
       - name: Deploy
         run: |-
           kubectl apply -f $DEPLOYMENT_NAME.yaml
-          kubectl set image pod/$DEPLOYMENT_NAME messaging=$REPOSITORY/$PROJECT_ID/amore-microservices/messaging:${{ github.sha }} profiles-redis=$REPOSITORY/$PROJECT_ID/amore-microservices/profiles-redis:${{ github.sha }} notification=$REPOSITORY/$PROJECT_ID/amore-microservices/notification:${{ github.sha }}
+          kubectl set image pod/common-services messaging=$REPOSITORY/$PROJECT_ID/amore-microservices/messaging:${{ github.sha }} profiles-redis=$REPOSITORY/$PROJECT_ID/amore-microservices/profiles-redis:${{ github.sha }} notification=$REPOSITORY/$PROJECT_ID/amore-microservices/notification:${{ github.sha }}
           kubectl rollout status pod/$DEPLOYMENT_NAME
