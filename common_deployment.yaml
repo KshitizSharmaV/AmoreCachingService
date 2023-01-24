@@ -9,7 +9,7 @@ spec:
   restartPolicy: Always
   containers:
     - name: messaging
-      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/messaging:latest    
+      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/messaging:${{ github.sha }}    
       resources:
         limits:
           memory: "512Mi"
@@ -25,7 +25,7 @@ spec:
               key: stagingServiceAccountKey.json
 
     - name: notification
-      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/notification:latest
+      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/notification:${{ github.sha }}
       resources:
         limits:
           memory: "512Mi"
@@ -41,7 +41,7 @@ spec:
               key: stagingServiceAccountKey.json
 
     - name: profiles-redis
-      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/profiles-redis:latest
+      image: us-central1-docker.pkg.dev/amore-f8cd6/amore-microservices/profiles-redis:${{ github.sha }}
       resources:
         limits:
           memory: "512Mi"
