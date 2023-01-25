@@ -9,5 +9,6 @@
 **/*.ipynb
 .cache
 env/
-/.vscode
+
 /Notebooks
+Gateways/.DS_Store
