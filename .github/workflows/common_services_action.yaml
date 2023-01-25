@@ -94,6 +94,5 @@ jobs:
       # Deploy the Docker image to the GKE cluster
       - name: Deploy
         run: |-
-          kubectl apply -f $DEPLOYMENT_NAME.yaml
+          kubectl apply -f $DEPLOYMENT_NAME.yaml --record
           kubectl set image pod/common-services messaging=$REPOSITORY/$PROJECT_ID/amore-microservices/messaging:${{ github.sha }} profiles-redis=$REPOSITORY/$PROJECT_ID/amore-microservices/profiles-redis:${{ github.sha }} notification=$REPOSITORY/$PROJECT_ID/amore-microservices/notification:${{ github.sha }} --record
-          kubectl rollout status pod/common-services
