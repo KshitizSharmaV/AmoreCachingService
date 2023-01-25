@@ -46,7 +46,7 @@ jobs:
         GIT_TAG: ${{ github.sha }}
       run: |-
         echo "Building image: $IMAGE"
-        docker build -t $IMAGE:$GIT_TAG -t $IMAGE:latest -f .
+        docker build -t $IMAGE:$GIT_TAG -t $IMAGE:latest -f Dockerfile .
         docker tag $IMAGE:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:$GIT_TAG
         docker tag $IMAGE:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
         docker push $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE --all-tags
