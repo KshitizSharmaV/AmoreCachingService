@@ -35,21 +35,21 @@ jobs:
       uses: 'google-github-actions/auth@v0'
       with:
         credentials_json: '${{ secrets.SERVICE_ACCOUNT_KEY }}'
-    
-    - name: Build Docker Image
-      run: docker build -t $IMAGE:latest .
 
     - name: Configure Docker Client
       run: |-
         gcloud auth configure-docker --quiet
         gcloud auth configure-docker $REPOSITORY --quiet
     
-    - name: Push Docker Image to Artifact Registry
+    - name: Build and Push Docker Image to Artifact Registry
       env:
-        GIT_TAG: latest
+        GIT_TAG: ${{ github.sha }}
       run: |-
-        docker tag $IMAGE:latest $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
-        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        echo "Building image: $IMAGE"
+        docker build -t $IMAGE:$GIT_TAG -t $IMAGE:latest -f Dockerfile .
+        docker tag $IMAGE:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:$GIT_TAG
+        docker tag $IMAGE:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
+        docker push $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE --all-tags
         
     - id: 'auth2'
       uses: 'google-github-actions/auth@v0'
@@ -69,3 +69,4 @@ jobs:
     - name: Deploy
       run: |-
         kubectl apply -f $DEPLOYMENT_NAME
+        kubectl set image deployment/caching-deployment caching=$REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:${{ github.sha }} --record
