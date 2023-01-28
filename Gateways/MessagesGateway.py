@@ -35,7 +35,7 @@ async def match_two_profiles_for_direct_message(current_user_id: str = None, oth
             LikesDislikes_async_store_likes_dislikes_superlikes_for_user(currentUserId=other_user_id,
                                                                          swipedUserId=current_user_id,
                                                                          swipeStatusBetweenUsers='Superlikes'))
-        return asyncio.gather(*[current_user_like_record_task, other_user_like_record_task])
+        return await asyncio.gather(*[current_user_like_record_task, other_user_like_record_task])
     except Exception as e:
         logger.error(f"Failed to Match Direct Message Profiles {current_user_id} and {other_user_id}")
         logger.exception(e)

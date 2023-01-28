@@ -3,7 +3,7 @@ from unittest.mock import patch, AsyncMock
 from Gateways.MessagesGateway import *
 from Tests.Utilities.test_base import client, async_mock_child
 import asyncio
-
+from ProjectConf.AsyncioPlugin import run_coroutine
 
 
 @pytest.mark.asyncio
@@ -38,14 +38,14 @@ async def test_match_two_profiles_for_direct_message_success():
         result == [True, True]
 
 # TODO not working
-# @pytest.mark.asyncio
-# async def test_match_two_profiles_for_direct_message_failure():
-#     current_user_id= "UserId123"
-#     other_user_id = "UserId456"
-#     with patch('Gateways.MessagesGateway.LikesDislikes_async_store_likes_dislikes_superlikes_for_user') as mock_f:
-#         mock_f.side_effect = Exception("Raise Exception")
-#         result = await match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id)
-#         assert result == False
+@pytest.mark.asyncio
+async def test_match_two_profiles_for_direct_message_failure():
+    current_user_id= "UserId123"
+    other_user_id = "UserId456"
+    with patch('Gateways.MessagesGateway.LikesDislikes_async_store_likes_dislikes_superlikes_for_user') as mock_f:
+        mock_f.side_effect = Exception("Raise Exception")
+        result = await match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id)
+        assert result == False
 
 
          
