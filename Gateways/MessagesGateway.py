@@ -39,4 +39,4 @@ async def match_two_profiles_for_direct_message(current_user_id: str = None, oth
     except Exception as e:
         logger.error(f"Failed to Match Direct Message Profiles {current_user_id} and {other_user_id}")
         logger.exception(e)
-        return
+        return False

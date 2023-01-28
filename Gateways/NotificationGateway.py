@@ -275,6 +275,7 @@ def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_
       default_delay = 0.2 # delay between two different messages in the pipeline
       time.sleep(default_delay)
       retryer = Retrying(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=retry_after_delay, max=5), reraise=True)
+      # TODO Configure re-try mechanism of sending notification after failure
       return
     except RetryError:
       return

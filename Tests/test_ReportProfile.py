@@ -14,7 +14,7 @@ async def test_report_profle_task_success():
     description_given = "Test Description"
     with patch('Gateways.ReportProfile.db') as db:
         with patch('Gateways.ReportProfile.redis_client.set') as mock_redis_set:
-            db.collection.return_value.document.return_value.collection.return_value.document.return_value.set.side_effect= async_mock_child
+            db.collection.return_value.document.return_value.collection.return_value.document.return_value.set.side_effect= await async_mock_child(return_value=True)
             key = "ReportedProfile:{reported_profile_id}:{current_user_id}"
             store_doc =  {
                 "reportedById": current_user_id,

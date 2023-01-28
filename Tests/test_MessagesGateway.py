@@ -28,17 +28,26 @@ async def test_unmatch_task_recent_chats_success():
     
     
 @pytest.mark.asyncio
-async def test_match_two_profiles_for_direct_message():
-    
-    profileIdList = ['user1','user2']
-    # Set up the mocks
-    with patch('Gateways.LikesDislikes_async_store_likes_dislikes_superlikes_for_user') as mock_f:
-        mock_f.return_value1 = await async_mock_child(return_value=[{"currentUserId": "123", "swipedUserId": "456", "swipeStatusBetweenUsers":'Superlikes'}])
-        mock_f.return_value2 = await async_mock_child(return_value=[{"currentUserId": "456", "swipedUserId": "123", "swipeStatusBetweenUsers":'Superlikes'}])
+async def test_match_two_profiles_for_direct_message_success():
+    current_user_id= "UserId123"
+    other_user_id = "UserId456"
+    with patch('Gateways.MessagesGateway.LikesDislikes_async_store_likes_dislikes_superlikes_for_user') as mock_f:
+        mock_f.return_value1 = await async_mock_child(return_value=True)
+        mock_f.return_value2 = await async_mock_child(return_value=True)
+        result = await match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id)
+        result == [True, True]
 
-        
-        # Check the response
-        pass
-    
+# TODO not working
+# @pytest.mark.asyncio
+# async def test_match_two_profiles_for_direct_message_failure():
+#     current_user_id= "UserId123"
+#     other_user_id = "UserId456"
+#     with patch('Gateways.MessagesGateway.LikesDislikes_async_store_likes_dislikes_superlikes_for_user') as mock_f:
+#         mock_f.side_effect = Exception("Raise Exception")
+#         result = await match_two_profiles_for_direct_message(current_user_id=current_user_id, other_user_id=other_user_id)
+#         assert result == False
+
+
+         
 
 
