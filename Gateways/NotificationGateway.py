@@ -157,11 +157,11 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                   # UNREGISTERED
                   logger.warning(f"UNREGISTERED Deleting expired FCM Token for user {user_id}")
                   # Delete the FCMToken for the user
-                  resp = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx]) 
+                  _ = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx]) 
                 
                 elif resp.exception.cause.status_code == 403:
                   # SENDER_ID_MISMATCH
-                  logger.error(f"SENDER_ID_MISMATC incorrect {user_id}. Check the SENDER ID in the Cloud Messaging of firestore prohect settings")
+                  logger.error(f"SENDER_ID_MISMATCH incorrect {user_id}. Check the SENDER ID in the Cloud Messaging of firestore prohect settings")
                   logger.error(f"Payload:{pay_load}")
                   logger.error(resp.exception.cause)
                   # TODO Send alert email out
@@ -257,7 +257,7 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None):
     doc_ref = db.collection('FCMTokens').document(user_id).collection('Devices').where(u'fcmToken', '==', fcm_token).get()
     for doc in doc_ref:
       db.delete(doc)
-
+    return True
   except Exception as e:
     logger.exception(f"Unable to delete FCMToken {user_id} {fcm_token}")
     return False
