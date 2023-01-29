@@ -1,5 +1,4 @@
 import pytest
-
 from ProjectConf.FirestoreConf import async_db, db
 from unittest.mock import patch, AsyncMock
 from Tests.Utilities.test_base import async_mock_child

@@ -1,6 +1,5 @@
 import pytest
 import json
-import json
 from unittest.mock import patch, MagicMock
 from app import app
 from Tests.Utilities.test_base import redis_test_set
