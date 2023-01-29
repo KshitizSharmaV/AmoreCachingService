@@ -18,34 +18,57 @@ from Utilities.LogSetup import configure_logger
 logger = configure_logger(__name__)
 
 async def MatchUnmatch_get_match_unmatch_nomatch_for_user(userId: str):
-    return await asyncio.gather(*[
-        MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, childCollectionName=cc_name) for cc_name
-        in ["Match", "Unmatch", "NoMatch"]])
+    """
+    Get match unmatch and nomatch for a user id
 
+    Params:
+        userId
+    
+    Returns:
+        List of ids
+    """
+    return await asyncio.gather(*[MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, childCollectionName=cc_name) for cc_name in ["Match", "Unmatch", "NoMatch"]])
 
 async def MatchUnmatch_store_match_or_nomatch(currentUserId=None, swipedUserId=None, match_status: str = None):
+    """
+    Write Match Unmatch to firestore and redi
+    
+    Params:
+        currentUserId 
+        swipedUserId
+        match_status
+
+    Returns:
+        Boolean value
+    """
     try:
         # Write to Firestore
         query_current = async_db.collection("LikesDislikes").document(currentUserId).collection(match_status).document(swipedUserId)
         await query_current.set({"id": swipedUserId, "timestamp": time.time()})
-
         query_other = async_db.collection("LikesDislikes").document(swipedUserId).collection(match_status).document(currentUserId)
         await query_other.set({"id": currentUserId, "timestamp": time.time()})
-
         logger.info(f"Stored {match_status} in Firestore for current: {currentUserId} and swiped: {swipedUserId}")
-
-        # Write Match to redis
         redis_client.sadd(f"MatchUnmatch:{currentUserId}:{match_status}", swipedUserId)
-
         redis_client.sadd(f"MatchUnmatch:{swipedUserId}:{match_status}", currentUserId)
-
         logger.info(f"Stored {match_status} in Redis for current: {currentUserId} and swiped: {swipedUserId}")
+        return True
     except Exception as e:
         logger.error(f"Unable to store NoMatch {currentUserId} {swipedUserId}")
         logger.exception(e)
+        return False
 
 
 async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=None):
+    """
+    Once two users are matched, this function writes to RecentChats for users to start chattng
+
+    Param:
+        currentUserId
+        swipedUserId
+
+    Returns:
+        Bool
+    """
     try:
         # Fetch the user data for current user and swiped user id
         currentUserData = await ProfilesGateway_get_profile_by_ids(profileIdList=[currentUserId])
@@ -83,24 +106,39 @@ async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=No
                          },
                          "otherUserUpdated": True,
                          "directMessageApproved": True})
+        return True
     except Exception as e:
         logger.error(f"Unable to write in recent chats after match {currentUserId} {swipedUserId}")
         logger.exception(e)
+        return False
 
 
 async def MatchUnmatch_send_message_notification(user_id=None):
-    date_str = datetime.today().strftime('%Y%m%d')
-    pay_load = {
-        'title':"You have a new Match 😍 !! ",
-        'body':"Let's break the 🧊 🔨",
-        'analytics_label': "Match" + date_str,
-        'badge_count':1,
-        'notification_image':None,
-        'aps_category':'Match',
-        'data':{'data':None}
-    }
-    await Notification_design_and_multicast(user_id=user_id, pay_load=pay_load, dry_run=False)
-    return 
+    """
+    Send match notification
+
+    Param: 
+        user_id: String
+    
+    Return: Bool
+    """
+    try:
+        date_str = datetime.today().strftime('%Y%m%d')
+        pay_load = {
+            'title':"You have a new Match 😍 !! ",
+            'body':"Let's break the 🧊 🔨",
+            'analytics_label': "Match" + date_str,
+            'badge_count':1,
+            'notification_image':None,
+            'aps_category':'Match',
+            'data':{'data':None}
+        }
+        await Notification_design_and_multicast(user_id=user_id, pay_load=pay_load, dry_run=False)
+        return True
+    except Exception as e:
+        logger.error(f"Unable to send Match/Unmatch notification for {user_id}")
+        logger.exception(e)
+        return False
 
 async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserId=None, currentUserSwipe=None):
     '''

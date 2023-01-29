@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 from Gateways.MatchUnmatchGateway import *
-from Tests.Utilities.test_base import client, async_mock_child
+from Tests.Utilities.test_base import async_mock_child
 import asyncio
 from unittest.mock import call
 
@@ -9,17 +9,10 @@ from unittest.mock import call
 
 @pytest.mark.asyncio
 async def test_MatchUnmatch_get_match_unmatch_nomatch_for_user_success():
-    
     with patch("Gateways.MatchUnmatchGateway.MatchUnmatch_fetch_userdata_from_firebase_or_redis") as mock_fetch_userdata:
-        
         userId = "123"
-
-        # set the return value of the mock function
         mock_fetch_userdata.return_value = "mock data"
-
-        # call the function under test
         result = await MatchUnmatch_get_match_unmatch_nomatch_for_user(userId)
-
         # assert that the function was called with the correct arguments
         assert mock_fetch_userdata.await_count == 3
         assert mock_fetch_userdata.await_args_list == [
@@ -27,39 +20,44 @@ async def test_MatchUnmatch_get_match_unmatch_nomatch_for_user_success():
             call(userId='123', childCollectionName='Unmatch'),
             call(userId='123', childCollectionName='NoMatch')
          ]
-
-
-        # assert that the function returned the expected result
         assert result == ["mock data", "mock data", "mock data"]
         
-    
-    
 @pytest.mark.asyncio
-async def test_MatchUnmatch_send_message_notification_success():
+async def test_MatchUnmatch_store_match_or_nomatch_success():
+    match_status = 'match'
+    currentUserId = 'user1'
+    swipedUserId = 'user2'
+
+    with patch('Gateways.MatchUnmatchGateway.async_db') as mock_async_db:
+        mock_current_doc_ref = mock_async_db.collection.return_value.document.return_value.collection.return_value.document.return_value
+        mock_other_doc_ref = mock_async_db.collection.return_value.document.return_value.collection.return_value.document.return_value
+        mock_current_doc_ref.set.side_effect = [async_mock_child(return_value=True), async_mock_child(return_value=True)]
+        with patch('Gateways.MatchUnmatchGateway.redis_client') as mock_redis_client:
+            mock_redis_client.sadd.return_value = None
+            result = await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, 
+                                                            swipedUserId=swipedUserId,
+                                                            match_status=match_status)
+            assert result == True
+
+@pytest.mark.asyncio
+async def test_MatchUnmatch_store_match_or_nomatch_failure():
+    match_status = 'match'
+    currentUserId = 'user1'
+    swipedUserId = 'user2'
+    """
+    Special case - To mock two different Firestore calls in the same function, you need to use side_effect in the mock object. You can specify a list of return values and each time the mock is called, it will return the next value in the list.
+    """
+    with patch('Gateways.MatchUnmatchGateway.async_db') as mock_async_db:
+        mock_current_doc_ref = mock_async_db.collection.return_value.document.return_value.collection.return_value.document.return_value
+        mock_other_doc_ref = mock_async_db.collection.return_value.document.return_value.collection.return_value.document.return_value
+        mock_current_doc_ref.set.side_effect = [Exception("Raise a test exception"), async_mock_child(return_value=True)]
+        with patch('Gateways.MatchUnmatchGateway.redis_client') as mock_redis_client:
+            mock_redis_client.sadd.return_value = None
+            result = await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId,match_status=match_status)
+            assert result == False
     
-    with patch("Gateways.MatchUnmatchGateway.datetime") as mock_datetime:
-        mock_date_str = mock_datetime.today.return_value.strftime.return_value
-        
-        # Prepare the test data
-        pay_load = {
-        'title':"You have a new Match 😍 !! ",
-        'body':"Let's break the 🧊 🔨",
-        'analytics_label': "Match" + mock_date_str,
-        'badge_count':1,
-        'notification_image':None,
-        'aps_category':'Match',
-        'data':{'data':None}
-        }
 
-        with patch("Gateways.MatchUnmatchGateway.Notification_design_and_multicast") as mock_not:
-            
-            
-            # Call the function to test
-            result = await mock_not(user_id="user_id", pay_load=pay_load, dry_run=False)
 
-            # Assert the expected results
-            assert result
-        
 
 
  
