@@ -8,7 +8,7 @@ env:
   GAR_LOCATION: ${{ secrets.ZONE_NAME }}
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.ZONE_NAME }}
-  DEPLOYMENT_NAME: common_deployment
+  DEPLOYMENT_NAME: DeploymentFiles/common_deployment
   REPOSITORY: us-central1-docker.pkg.dev 
   USE_GKE_GCLOUD_AUTH_PLUGIN: true
 
@@ -26,11 +26,11 @@ jobs:
       matrix:
         my_images:
           - image: profiles-redis
-            Dockerfile: Dockerfile_ProfileRedis
+            Dockerfile: DeploymentFiles/Dockerfile_ProfileRedis
           - image: notification
-            Dockerfile: Dockerfile_Notifications
+            Dockerfile: DeploymentFiles/Dockerfile_Notifications
           - image: messaging
-            Dockerfile: Dockerfile_Messaging
+            Dockerfile: DeploymentFiles/Dockerfile_Messaging
 
 
     steps:

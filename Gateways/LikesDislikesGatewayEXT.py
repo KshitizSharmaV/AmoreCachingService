@@ -2,7 +2,6 @@ from ProjectConf.FirestoreConf import async_db
 from google.cloud import firestore
 import time
 import asyncio
-from redis import Redis
 from ProjectConf.RedisConf import redis_client
 from Utilities.LogSetup import configure_logger
 

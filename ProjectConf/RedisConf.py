@@ -1,47 +1,40 @@
 import redis
 import os
-from redis.commands.json.path import Path
-import json
-
-from redis import Redis, ResponseError
+from redis import ResponseError
 from redis.commands.search.field import TextField, NumericField, TagField
 from redis.commands.search.indexDefinition import IndexDefinition, IndexType
-from redis.commands.search.query import Query
-
 
 in_env = os.getenv('CACHING_SERVICE_SERVICE_HOST', None)
 
 if in_env:
-    redis_client = redis.StrictRedis (
-        host = "redis-svc.default",
-        port = "6379",
+    redis_client = redis.StrictRedis(
+        host="redis-svc.default",
+        port=6379,
         charset="utf-8",
         decode_responses=True
     )
 else:
-    redis_client = redis.StrictRedis (
-        host = "localhost",
-        port = "6379",
+    redis_client = redis.StrictRedis(
+        host="localhost",
+        port=6379,
         charset="utf-8",
         decode_responses=True
     )
 
-
 # Profiles Options for index creation
-profile_index_def = IndexDefinition(prefix=["profile:"])
+profile_index_def = IndexDefinition(index_type=IndexType.JSON, prefix=["profile:"])
 # Profiles Schema definition
 profile_schema = (
-    TextField("geohash", sortable=True),
-    TextField("geohash1", sortable=True),
-    TextField("geohash2", sortable=True),
-    TextField("geohash3", sortable=True),
-    TextField("geohash4", sortable=True),
-    TextField("geohash5", sortable=True),
-    TextField("genderIdentity", sortable=True),
-    TextField("religion", sortable=True),
-    TextField("id", sortable=True),
-    TextField("isProfileActive", sortable=True),
-    NumericField("age", sortable=True)
+    TextField("$.geohash", as_name="geohash", sortable=True),
+    TextField("$.geohash1", as_name="geohash1"),
+    TextField("$.geohash2", as_name="geohash2"),
+    TextField("$.geohash3", as_name="geohash3"),
+    TextField("$.geohash4", as_name="geohash4"),
+    TextField("$.geohash5", as_name="geohash5"),
+    TextField("$.genderIdentity", as_name="genderIdentity"),
+    TextField("$.religion", as_name="religion"),
+    TextField("$.id", as_name="id"),
+    NumericField("$.age", as_name="age", sortable=True)
 )
 
 # FCMTokens Options for index creation
@@ -51,6 +44,7 @@ fcm_schema = (
     TextField("$.userId", as_name="userId"),
     TextField("$.deviceId", as_name="deviceId")
 )
+
 
 def try_creating_profile_index_for_redis():
     """Creates indexes in redis for profiles querying
@@ -85,9 +79,6 @@ def check_redis_index_exists(index: str) -> bool:
         return False
 
 
-
 if __name__ == "__main__":
     try_creating_profile_index_for_redis()
-    try_creating_fcm_index_for_redis()
-
-
+    # try_creating_fcm_index_for_redis()

@@ -1,4 +1,4 @@
-# deployment.yaml
+# common_deployment.yaml
 apiVersion: v1
 kind: Pod
 metadata:

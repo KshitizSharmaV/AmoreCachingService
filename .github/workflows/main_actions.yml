@@ -8,7 +8,7 @@ env:
   GAR_LOCATION: ${{ secrets.ZONE_NAME }}
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.ZONE_NAME }}
-  DEPLOYMENT_NAME: deployment.yaml
+  DEPLOYMENT_NAME: DeploymentFiles/redis_deployment.yaml
   REPOSITORY: us-central1-docker.pkg.dev 
   IMAGE: caching-api
   USE_GKE_GCLOUD_AUTH_PLUGIN: true
@@ -46,7 +46,7 @@ jobs:
         GIT_TAG: ${{ github.sha }}
       run: |-
         echo "Building image: $IMAGE"
-        docker build -t $IMAGE:$GIT_TAG -t $IMAGE:latest -f Dockerfile .
+        docker build -t $IMAGE:$GIT_TAG -t $IMAGE:latest -f DeploymentFiles/Dockerfile .
         docker tag $IMAGE:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:$GIT_TAG
         docker tag $IMAGE:$GIT_TAG $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE:latest
         docker push $REPOSITORY/$PROJECT_ID/amore-microservices/$IMAGE --all-tags
