@@ -257,6 +257,8 @@ async def MatchUnmatch_fetch_data_from_redis(userId=None, childCollectionName=No
     Fetch match unmatch data from redis
         :param userId: user id
         :param childCollectionName: Match or Unmatch
+    Return 
+        List of profile
     """
     try:
         redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
@@ -278,13 +280,15 @@ def MatchUnmatch_calculate_the_match(firstUserSwipe=None, secondUserSwipe=None):
             if secondUserSwipe == "Superlikes": return "Match"
             if secondUserSwipe == "Dislikes": return "NoMatch"
         elif firstUserSwipe == "Superlikes":
-            if secondUserSwipe == "Like": return "Match"
+            if secondUserSwipe == "Likes": return "Match"
             if secondUserSwipe == "Dislikes": return "NoMatch"
             if secondUserSwipe == "Superlikes": return "Match"
         elif firstUserSwipe == "Dislikes":
             if secondUserSwipe == "Superlikes": return "NoMatch"
             if secondUserSwipe == "Likes": return "NoMatch"
             if secondUserSwipe == "Dislikes": return "NoMatch"
+        else:
+            raise Exception("Invalid input for firstUserSwipe")
     except Exception as e:
         logger.error(f"Unable to calcualte the match {firstUserSwipe} {secondUserSwipe}")
         logger.exception(e)
