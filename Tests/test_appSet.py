@@ -61,27 +61,20 @@ async def test_store_profile_success(client):
     # Set up the test data
     profile = {'id':'UserId1','FirstName':'Test'}
         # Set up the mocks
-    with patch('appSet.GeoService_store_profiles') as mock_geo_store_profile:
+    with patch('appSet.Profiles_store_profiles') as mock_geo_store_profile:
         mock_geo_store_profile.return_value = await async_mock_child(return_value=True)
-
-        # Send the request
         data = {'profile': profile}
         response = client.post('/storeProfileInBackendGate', json=data)
-        # Check the response
         assert response.status_code == 200
         assert response.json == {'message': f"{profile['id']}: Successfully stored profile in Cache/DB"}
 
 @pytest.mark.asyncio
 async def test_store_profile_failure(client):
-    # Set up the test data
     profile = {'id':'UserId1','FirstName':'Test'}
-    # Set up the mocks
-    with patch('appSet.GeoService_store_profiles') as mock_geo_store_profile:
+    with patch('appSet.Profiles_store_profiles') as mock_geo_store_profile:
         mock_geo_store_profile.side_effect = Exception('Error storing profile')
-        # Send the request
         data = {'profile': profile}
         response = client.post('/storeProfileInBackendGate', json=data)
-        # Check the response
         assert response.status_code == 400
 
 @pytest.mark.asyncio

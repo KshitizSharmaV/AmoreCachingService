@@ -70,11 +70,9 @@ async def ProfilesGateway_get_profile_by_ids(profileIdList=None):
         keys_not_in_cache = list(set(profileIdList).difference(fetched_profiles_ids)) if len(fetched_profiles_ids) != len(profileIdList) else []
         if not len(all_profiles_data):
             logger.warning(f'0 profiles were returned for following profiles: {",".join(profileIdList)}')
-        print(keys_not_in_cache)
         if len(keys_not_in_cache) > 0:
             new_profiles_cached = await ProfilesGateway_load_profiles_to_cache_from_firebase(profileIdsNotInCache=keys_not_in_cache)
             all_profiles_data.extend(new_profiles_cached)
-        print(all_profiles_data)
         return all_profiles_data
     except Exception as e:
         logger.error(f'An error occurred in fetching profiles for ids: {",".join(profileIdList)}')

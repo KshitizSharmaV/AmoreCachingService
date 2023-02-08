@@ -63,39 +63,20 @@ async def test_MatchUnmatch_store_match_or_nomatch_failure():
             assert result == False
 
 
-
-
-
 @pytest.mark.asyncio
 async def test_MatchUnmatch_send_message_notification_success():
-    
-    with patch('Gateways.MatchUnmatchGateway.async_db') as mock_async_db:
-        with patch('Gateways.MatchUnmatchGateway.datetime') as mock_datetime:
-            
-            mock_datetime.today.return_value = datetime(2023, 2, 2)
-            date_str = datetime.today().strftime('%Y%m%d')
-            assert date_str == '20230202'
-            
-            with patch('Gateways.MatchUnmatchGateway.Notification_design_and_multicast') as mock_dm:
-                
-                result= await MatchUnmatch_send_message_notification('2')
-                assert result==True
-                
+    with patch('Gateways.MatchUnmatchGateway.Notification_design_and_multicast') as mock_notification_design_multicast:
+        mock_notification_design_multicast.return_value = await async_mock_child(return_value=True)
+        result= await MatchUnmatch_send_message_notification(user_id='UserId123')
+        assert result==True
+
+        
 @pytest.mark.asyncio
 async def test_MatchUnmatch_send_message_notification_failure():
-    
-    with patch('Gateways.MatchUnmatchGateway.async_db') as mock_async_db:
-        with patch('Gateways.MatchUnmatchGateway.datetime') as mock_datetime:
-            
-            mock_datetime.today.return_value = datetime(2023, 2, 2)
-            date_str = datetime.today().strftime('%Y%m%d')
-            assert date_str == '20230202'
-            
-            with patch('Gateways.MatchUnmatchGateway.Notification_design_and_multicast') as mock_dm:
-                
-                mock_dm.side_effect = Exception("Notification sending failed")
-                result= await MatchUnmatch_send_message_notification('2')
-                assert result==False
+    with patch('Gateways.MatchUnmatchGateway.Notification_design_and_multicast') as mock_notification_design_multicast:
+        mock_notification_design_multicast.side_effect = Exception("Notification sending failed")
+        result= await MatchUnmatch_send_message_notification(user_id='UserId123')
+        assert result==False
 
 
 @pytest.mark.asyncio
@@ -254,3 +235,35 @@ async def test_MatchUnmatch_delete_record_from_redis_failure():
             allUserMatchOrUnmatches = list(mock_redis_client.smembers.return_value)
             result = await MatchUnmatch_delete_record_from_redis(user_id_1=userId1, user_id_2= None, childCollectionName=childCollectionName)
             assert result == False
+
+@pytest.mark.asyncio
+async def test_RecentChats_Unmatch_Delete_Chat_success():
+    # Set up the mocks
+    with patch("Gateways.MatchUnmatchGateway.async_db") as mock_async_db:
+        mock_recent_chat_ref = mock_async_db.collection.return_value.document.return_value.collection.return_value.document.return_value
+        mock_recent_chat_ref.delete.return_value = asyncio.Future()
+        mock_recent_chat_ref.delete.return_value.set_result(True)
+        # Prepare the test data
+        user_id_1 = "12345"
+        user_id_2 = "67890"
+        # Call the function to test
+        result = await RecentChats_Unmatch_Delete_Chat(user_id_1, user_id_2)
+        # Assert the expected results
+        assert result == True
+        
+
+@pytest.mark.asyncio
+async def test_RecentChats_Unmatch_Delete_Chat_failure():
+    # Set up the mocks
+    with patch("Gateways.MatchUnmatchGateway.async_db") as mock_async_db:
+        mock_recent_chat_ref = mock_async_db.collection.return_value.document.return_value.collection.return_value.document.return_value
+        mock_recent_chat_ref.delete.side_effect = Exception("Can't get profiles for the ID")
+        # Prepare the test data
+        user_id_1 = "12345"
+        user_id_2 = "67890"
+        # Call the function to test
+        result = await RecentChats_Unmatch_Delete_Chat(user_id_1, user_id_2)
+        # Assert the expected results
+        assert result == False
+        
+        

@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import MagicMock
 from unittest.mock import patch
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user, LikesDislikes_get_profiles_already_seen_by_id
 from Tests.Utilities.test_base import async_mock_child
