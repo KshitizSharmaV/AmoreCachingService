@@ -14,9 +14,9 @@ async def test_Notification_store_fcm_token_in_redis_success():
     }
     with patch('Gateways.NotificationGateway.check_redis_index_exists') as mock_check_redis_index_exists:
         mock_check_redis_index_exists.return_value = True
-        with patch('Gateways.NotificationGateway.redis_client.set') as mock_redis_client_set:
+        with patch('Gateways.NotificationGateway.redis_client') as mock_redis_client:
             key = f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']}"
-            mock_redis_client_set.side_effect = redis_test_set(key, fcm_data)
+            mock_check_redis_index_exists.set.side_effect = redis_test_set(key, fcm_data)
             result = await Notification_store_fcm_token_in_redis(fcm_data=fcm_data)
             assert result == True
 
