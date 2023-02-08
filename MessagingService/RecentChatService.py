@@ -13,7 +13,6 @@ from ProjectConf.AsyncioPlugin import run_coroutine
 from MessagingService.Helper import *
 from Gateways.NotificationGateway import Notification_design_and_multicast
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
-from Gateways.ProfilesGatewayEXT import GeoService_get_fitered_profiles_on_params
 from Utilities.LogSetup import configure_logger
 
 logger = configure_logger(__name__)
