@@ -102,3 +102,4 @@ Werkzeug==2.0.2
 wrapt==1.14.0
 gunicorn
 google-cloud-logging
+pytest-asyncio
