@@ -71,6 +71,7 @@ def recent_chat_update_handler(given_user_id=None):
             chat_data = ChatConversation.from_dict(chat_data)
             # Get the data for other user whose chat needs to be updated
             profile_list = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[other_user_id]))
+            profile_list = profile_list.result()
             if len(profile_list) == 0:
                 # If profile doesn't exist in redis
                 given_user_data = db.collection("Profiles").document(given_user_id).get().to_dict()

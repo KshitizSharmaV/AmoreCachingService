@@ -18,7 +18,6 @@ async def Profiles_store_profiles(profile=None):
     try:
         key = f"profile:{profile['id']}"
         profile = serialise_deserialise_date_in_profile(profile_json=profile, serialise=True)
-        print(profile)
         redis_client.json().set(key, Path.root_path(), profile)
         logger.info(f"Profile stored/updated in cache with key: {key}")
         return True

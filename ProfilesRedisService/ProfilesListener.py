@@ -82,7 +82,7 @@ if __name__ == '__main__':
         logger.error(traceback.format_exc())
     finally:
         # Unsubscribe from all the listeners
-        print("Finally was executed")
+        logger.error("Finally was executed")
         logger.error("Error: Profiles Redis Service was unsubscribed from listener")
         query_watch.unsubscribe()
     callback_done.set()
