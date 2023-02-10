@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch
 from app import app
 from Tests.Utilities.test_base import client, async_mock_child
+from unittest.mock import MagicMock
 
 
 @pytest.mark.asyncio
@@ -50,25 +51,34 @@ async def test_fetch_geo_recommendations_failure(client):
     # Set up the test data
     profileIdList = ['user1','user2']
     # Set up the mocks
-    with patch('appGet.ProfilesGateway_get_profile_by_ids') as mock_get_profile_by_ids:
-        mock_get_profile_by_ids.side_effect = Exception("Can't get profiles for the ID")
-        data = {'profileIdList': profileIdList}
-        response = client.post('/fetchGeoRecommendationsGate', json=data)
-        # Check the response
-        assert response.status_code == 400   
+    with patch('appGet.check_redis_index_exists') as mock_check_redis_index_exists:
+        mock_check_redis_index_exists.return_value = True
+        with patch('appGet.RecommendationSystem') as mock_recommendation_system:
+            mock_recommendation_system.side_effect = Exception("Can't get profiles for the ID")
+            data = {'profileIdList': profileIdList}
+            response = client.post('/fetchGeoRecommendationsGate', json=data)
+            # Check the response
+            assert response.status_code == 400   
    
-     
 @pytest.mark.asyncio
 async def test_get_likes_dislikes_for_user_route_success(client):
-    #Set up the test day
-    #Set up the mocks
-    with patch('appGet.LikesDislikes_fetch_userdata_from_firebase_or_redis') as mock_func:
-        mock_func.return_value=await async_mock_child(return_value=['user1','user2'])
-        data={'currentUserId':'user1','childCollectionName':1231,'matchFor':'dsag','noOfLastRecords':21}
-        response=client.get('/getlikesdislikesforuser',json=data)
-        
-        #check response
-        assert response.status_code ==200
+    data={
+            'currentUserId':'UserId123',
+            'childCollectionName':'Given',
+            'matchFor':'Superlikes',
+            'noOfLastRecords':10
+    }
+    with patch("appGet.LikesDislikes_fetch_userdata_from_firebase_or_redis") as mock_fetch_userdata_from_firebase_or_redis:
+        return_profile_ids = ['UserId234','UserId345']
+        async_mock_obj = MagicMock()
+        async_mock_obj.result.return_value = return_profile_ids
+        mock_fetch_userdata_from_firebase_or_redis.return_value = await async_mock_child(return_value=async_mock_obj)
+        with patch("appGet.ProfilesGateway_get_profile_by_ids") as mock_profilesGateway_get_profile_by_ids:
+            return_profiles = [{'id':'UserId234','firstName':'TestName1'},{'id':'UserId345','firstName':'TestName2'},]
+            mock_profilesGateway_get_profile_by_ids.return_value = await async_mock_child(return_value=return_profiles)
+            response = client.get('/getlikesdislikesforuser',json=data)
+            assert response.status_code == 200
+            assert json.loads(response.data) == return_profiles
 
 
 @pytest.mark.asyncio
@@ -79,8 +89,6 @@ async def test_get_likes_dislikes_for_user_route_failure(client):
         mock_func.side_effect=Exception("Can't get likes/dislikes of the user.")
         data={'currentUserId':'user1','childCollectionName':1231,'matchFor':'dsag','noOfLastRecords':21}
         response=client.get('/getlikesdislikesforuser',json=data)
-        
-        #check response
         assert response.status_code == 401
 
 

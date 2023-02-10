@@ -77,7 +77,7 @@ def get_likes_dislikes_for_user_route():
         childCollectionName = request.get_json().get('childCollectionName')
         matchFor = request.get_json().get('matchFor')
         noOfLastRecords = request.get_json().get('noOfLastRecords')
-        logger.warn(f"Request to fetch last {noOfLastRecords} likes dislikes")
+        logger.warning(f"Request to fetch last {noOfLastRecords} likes dislikes")
         # Get profile ids for given filter in likesdislikes
         ids_list = run_coroutine(LikesDislikes_fetch_userdata_from_firebase_or_redis(userId=currentUserId,
                                                                     childCollectionName=childCollectionName,

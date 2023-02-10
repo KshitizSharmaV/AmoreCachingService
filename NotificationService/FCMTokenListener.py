@@ -4,17 +4,10 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
 import traceback
-import os
 import threading
 import time
-import logging
-from time import strftime
-from datetime import datetime
-from dataclasses import asdict, dataclass
-from logging.handlers import TimedRotatingFileHandler
-from ProjectConf.FirestoreConf import db, async_db
+from ProjectConf.FirestoreConf import db
 from ProjectConf.AsyncioPlugin import run_coroutine
-from google.cloud import firestore
 from Gateways.NotificationGateway import Notification_store_fcm_token_in_redis
 from Utilities.LogSetup import configure_logger
 logger = configure_logger(__name__)

@@ -8,27 +8,22 @@ sys.path.append(
 ###### Engine : Matching Engine
 # Trigger this file to run Matching engine
 #################################################
-import os
 import threading
 import traceback
 import time
-import logging
-from datetime import datetime
 from ProjectConf.FirestoreConf import db
 from ProjectConf.RedisConf import redis_client
 from ProjectConf.AsyncioPlugin import run_coroutine
-from logging.handlers import TimedRotatingFileHandler
-from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
-from Gateways.GeoserviceGateway import GeoService_store_profiles
+from Gateways.ProfilesGatewayEXT import Profiles_store_profiles
 
 from Utilities.LogSetup import configure_logger
 logger = configure_logger(__name__)
 
 def on_create_or_update_profile(document):
     try:
-        profile_data = Profile.encode_data_for_redis(document.to_dict())
+        profile_data = document.to_dict()
         profile_data['id'] = document.id
-        future = run_coroutine(GeoService_store_profiles(profile=profile_data))
+        future = run_coroutine(Profiles_store_profiles(profile=profile_data))
         result = future.result()
     except Exception as e:
         logger.exception(e)
@@ -38,8 +33,8 @@ def on_create_or_update_profile(document):
 
 def on_delete_profile(document):
     try:
-        deletion_hash_name = f"profile:{document.id}"
-        redis_client.delete(deletion_hash_name)
+        deletion_key = f"profile:{document.id}"
+        redis_client.json().delete(deletion_key)
     except Exception as e:
         logger.exception(e)
         logger.error("Error occurred while deleting redis Profiles Listener")

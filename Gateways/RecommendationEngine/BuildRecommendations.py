@@ -1,8 +1,4 @@
-import asyncio
-import traceback
-
 import pandas as pd
-from redis import Redis
 from Gateways.RecommendationEngine.ProfilesGrader import ProfilesGrader
 from Gateways.RecommendationEngine.ProfilesFetcher import ProfilesFetcher
 from ProjectConf.AsyncioPlugin import run_coroutine
@@ -57,13 +53,12 @@ class RecommendationSystem:
         - Get the normalised data frame of other users' data
         """
         try:
+            self.normalised_other_users_df = pd.DataFrame()
             if self.other_users_data:
                 self.profile_grader = ProfilesGrader(current_user_data=self.current_user_data,
                                                      other_users_data=self.other_users_data)
                 future = run_coroutine(self.profile_grader.get_normalised_graded_profiles_df())
                 self.normalised_other_users_df = future.result()
-            else:
-                self.normalised_other_users_df = pd.DataFrame()
         except Exception as e:
             logger.exception(e)
 

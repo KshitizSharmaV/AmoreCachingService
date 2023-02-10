@@ -7,7 +7,7 @@ from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislik
 from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
 from Gateways.RewindGateway import Rewind_task_function, get_last_given_swipe_from_firestore
 from Gateways.ReportProfile import Report_profile_task
-from Gateways.GeoserviceGateway import GeoService_store_profiles
+from Gateways.ProfilesGatewayEXT import Profiles_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 
@@ -105,7 +105,7 @@ def store_profile():
     try:
         profile = request.get_json().get('profile')
         # Update the cache with profile data?
-        future = run_coroutine(GeoService_store_profiles(profile=profile))
+        future = run_coroutine(Profiles_store_profiles(profile=profile))
         result = future.result()
         logger.info(f"{profile['id']}: Successfully stored profile in Cache/DB")
         response = jsonify({'message': f"{profile['id']}: Successfully stored profile in Cache/DB"})

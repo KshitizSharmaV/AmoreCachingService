@@ -9,7 +9,7 @@ env:
   GAR_LOCATION: ${{ secrets.ZONE_NAME }}
   GKE_CLUSTER: ${{ secrets.GKE_CLUSTER_NAME }}
   GKE_ZONE: ${{ secrets.ZONE_NAME }}
-  DEPLOYMENT_NAME: redis_svc_files/deployment.yaml
+  DEPLOYMENT_NAME: DeploymentFiles/redis_deployment.yaml
   REPOSITORY: us-central1-docker.pkg.dev 
   IMAGE: notification
   USE_GKE_GCLOUD_AUTH_PLUGIN: true

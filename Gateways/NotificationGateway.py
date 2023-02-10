@@ -67,7 +67,7 @@ def Notification_fetch_fcm_token_docs_for_userId(user_id=None):
         return False
 
 
-def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, deviceId=None):
+def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, device_id=None):
   """Returns the fcm tokens for a user id and device id from the redis
         - Fetch a single FCMToken record using the userId and deviceId
     
@@ -78,11 +78,11 @@ def Notification_fetch_fcm_token_for_userId_deviceId(user_id=None, deviceId=None
       FCMToken missing error
   """
   try:
-    if (user_id is not None) and (deviceId is not None):
-      key = f"FCMTokens:{user_id}:{deviceId}"
+    if (user_id is not None) and (device_id is not None):
+      key = f"FCMTokens:{user_id}:{device_id}"
       record = redis_client.json().get(key)
       return record
-    logger.error("FCMToken:{deviceId} user_id:{user_id} or deviceId can't be None")
+    logger.error("FCMToken:{device_id} user_id:{user_id} or deviceId can't be None")
     return None
   except Exception as e:
         logger.exception(f"Unable to fetch FCMTokens for the {user_id}")
@@ -97,11 +97,16 @@ def Notification_get_fcm_tokens_from_redis_docs(fcm_token_docs=None):
   Returns: 
     List of fcm tokens
   """
-  fcm_tokens = []
-  for device in fcm_token_docs.docs:
-      device_json = json.loads(device.json)
-      fcm_tokens.append(device_json['fcmToken'])
-  return fcm_tokens
+  try:
+    fcm_tokens = []
+    for device in fcm_token_docs.docs:
+        device_json = json.loads(device.json)
+        fcm_tokens.append(device_json['fcmToken'])
+    return fcm_tokens
+  except Exception as e:
+    logger.exception(f'Unable to return fcm token list for {fcm_token_docs}')
+    logger.exception(e)
+    return False
 
 
 def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notification=None, data=None, fcm_tokens=None, dry_run=None):
@@ -121,11 +126,7 @@ def Notification_send_muticastmessage_to_userId(user_id=None, apns=None, notific
     # TODO Add collapsible or non-collapsible message type
     # Check the JSON representation of the MultiCastMessage here
     # https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages
-    message = messaging.MulticastMessage(
-      notification=notification,
-      data=data,
-      tokens=fcm_tokens,
-      apns=apns)
+    message = messaging.MulticastMessage(notification=notification,data=data,tokens=fcm_tokens,apns=apns)
     response = messaging.send_multicast(message, dry_run)
     return response
   except Exception as e:
@@ -156,11 +157,11 @@ def Notification_failed_tokens(user_id=None, pay_load=None, response=None, fcm_t
                   # UNREGISTERED
                   logger.warning(f"UNREGISTERED Deleting expired FCM Token for user {user_id}")
                   # Delete the FCMToken for the user
-                  resp = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx]) 
+                  _ = Notification_delete_fcm_token(user_id=user_id, fcm_token=fcm_tokens[idx]) 
                 
                 elif resp.exception.cause.status_code == 403:
                   # SENDER_ID_MISMATCH
-                  logger.error(f"SENDER_ID_MISMATC incorrect {user_id}. Check the SENDER ID in the Cloud Messaging of firestore prohect settings")
+                  logger.error(f"SENDER_ID_MISMATCH incorrect {user_id}. Check the SENDER ID in the Cloud Messaging of firestore prohect settings")
                   logger.error(f"Payload:{pay_load}")
                   logger.error(resp.exception.cause)
                   # TODO Send alert email out
@@ -256,7 +257,7 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None):
     doc_ref = db.collection('FCMTokens').document(user_id).collection('Devices').where(u'fcmToken', '==', fcm_token).get()
     for doc in doc_ref:
       db.delete(doc)
-
+    return True
   except Exception as e:
     logger.exception(f"Unable to delete FCMToken {user_id} {fcm_token}")
     return False
@@ -274,6 +275,7 @@ def Notification_exponential_back_off(user_id=None, fcm_token=None, retry_after_
       default_delay = 0.2 # delay between two different messages in the pipeline
       time.sleep(default_delay)
       retryer = Retrying(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=retry_after_delay, max=5), reraise=True)
+      # TODO Configure re-try mechanism of sending notification after failure
       return
     except RetryError:
       return

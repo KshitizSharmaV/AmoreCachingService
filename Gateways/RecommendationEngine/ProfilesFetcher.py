@@ -7,19 +7,18 @@ import asyncio
 import time
 import traceback
 from typing import Set
-from redis import Redis
-from pprint import pprint
-from dataclasses import asdict
-from Utilities.DictOps import ignore_none
+import json
 from ProjectConf.FirestoreConf import db
 from ProjectConf.RedisConf import redis_client, try_creating_profile_index_for_redis, check_redis_index_exists
 from redis.commands.search.query import Query
-from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import QueryBuilder, Profile
-from Gateways.GeoserviceGateway import GeoService_store_profiles, Geoservice_calculate_geo_hash_from_radius
+from Gateways.ProfileQueryModel import QueryBuilder, serialise_deserialise_date_in_profile
+from Gateways.ProfilesGatewayEXT import Profiles_store_profiles, Profiles_calculate_geo_hash_from_radius
 from Gateways.LikesDislikesGateway import LikesDislikes_get_profiles_already_seen_by_id
 from ProjectConf.AsyncioPlugin import run_coroutine
 from Utilities.LogSetup import configure_logger
+
 logger = configure_logger(__name__)
+
 
 class ProfilesFetcher:
     """
@@ -53,11 +52,13 @@ class ProfilesFetcher:
     def fetch_current_user_data(self) -> dict:
         try:
             key = f"profile:{self.current_user_id}"
-            self.current_user_data = asdict(Profile.decode_data_from_redis(redis_client.hgetall(key)),
-                                            dict_factory=ignore_none)
+            self.current_user_data = redis_client.json().get(key)
             if not self.current_user_data:
                 self.current_user_data = self.fetch_current_user_data_from_firestore()
-                asyncio.run(GeoService_store_profiles(profile=self.current_user_data))
+                asyncio.run(Profiles_store_profiles(profile=self.current_user_data))
+            else:
+                self.current_user_data = serialise_deserialise_date_in_profile(profile_json=self.current_user_data,
+                                                                               deserialise=True)
             return self.current_user_data
         except Exception as e:
             logger.exception(e)
@@ -67,7 +68,8 @@ class ProfilesFetcher:
         try:
             profile_ids_already_swiped_by_user = run_coroutine(
                 LikesDislikes_get_profiles_already_seen_by_id(userId=self.current_user_id, childCollectionName="Given"))
-            self.profiles_already_seen = self.profiles_already_seen.union(set(profile_ids_already_swiped_by_user.result()))
+            self.profiles_already_seen = self.profiles_already_seen.union(
+                set(profile_ids_already_swiped_by_user.result()))
             return self.profiles_already_seen
         except Exception as e:
             logger.exception(e)
@@ -77,7 +79,7 @@ class ProfilesFetcher:
         try:
             for geohash in self.geohash_keys:
                 self.current_user_filters[geohash] = '*'
-            geohash_level = Geoservice_calculate_geo_hash_from_radius(
+            geohash_level = Profiles_calculate_geo_hash_from_radius(
                 radius=self.current_user_filters.get('radiusDistance'))
             self.current_user_filters[geohash_level] = self.current_user_data.get(geohash_level, '*')
         except Exception as e:
@@ -121,8 +123,13 @@ class ProfilesFetcher:
 
     def get_dict_for_redis_query_result(self, result_profile):
         try:
-            profile = Profile.decode_data_from_redis(result_profile.__dict__).to_dict()
+            profile = result_profile.__dict__
             profile['id'] = profile['id'].replace('profile:', '')
+            if profile.get('json'):
+                profile.pop("payload", None)
+                profile_json = json.loads(profile.pop('json'))
+                profile.update(**profile_json)
+            profile = serialise_deserialise_date_in_profile(profile_json=profile, deserialise=True)
             return profile
         except Exception as e:
             logger.exception(e)

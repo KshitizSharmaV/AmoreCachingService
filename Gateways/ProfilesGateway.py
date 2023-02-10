@@ -1,9 +1,7 @@
 import asyncio
-from dataclasses import asdict
 import traceback
-from Gateways.GeoserviceEXTs.GeoserviceGatewayEXT import Profile
-from Utilities.DictOps import ignore_none
-from Gateways.GeoserviceGateway import GeoService_store_profiles
+from Gateways.ProfileQueryModel import serialise_deserialise_date_in_profile
+from Gateways.ProfilesGatewayEXT import Profiles_store_profiles
 from ProjectConf.RedisConf import redis_client
 from ProjectConf.FirestoreConf import async_db
 from Utilities.LogSetup import configure_logger
@@ -23,7 +21,7 @@ async def ProfilesGateway_write_one_profile_to_cache_after_firebase_read(profile
         profile = profileDoc.to_dict()
         if profile:
             profile["id"] = profileDoc.id
-            _ = await GeoService_store_profiles(profile=profile)
+            _ = await Profiles_store_profiles(profile=profile)
             return profile
         else:
             # System should never receive an unrecognized ID
@@ -64,18 +62,17 @@ async def ProfilesGateway_get_profile_by_ids(profileIdList=None):
         all_profiles_data = []
         fetched_profiles_ids = set()
         for profile_id in profileIdList:
-            profile = Profile.decode_data_from_redis(redis_client.hgetall(f"profile:{profile_id}"))
-            if profile.id:
-                all_profiles_data.append(profile.to_dict())
+            profile = redis_client.json().get(f"profile:{profile_id}")
+            if profile.get('id'):
+                profile = serialise_deserialise_date_in_profile(profile_json=profile, deserialise=True)
+                all_profiles_data.append(profile)
                 fetched_profiles_ids.add(profile_id)
         keys_not_in_cache = list(set(profileIdList).difference(fetched_profiles_ids)) if len(fetched_profiles_ids) != len(profileIdList) else []
         if not len(all_profiles_data):
             logger.warning(f'0 profiles were returned for following profiles: {",".join(profileIdList)}')
-        print(keys_not_in_cache)
         if len(keys_not_in_cache) > 0:
             new_profiles_cached = await ProfilesGateway_load_profiles_to_cache_from_firebase(profileIdsNotInCache=keys_not_in_cache)
             all_profiles_data.extend(new_profiles_cached)
-        print(all_profiles_data)
         return all_profiles_data
     except Exception as e:
         logger.error(f'An error occurred in fetching profiles for ids: {",".join(profileIdList)}')

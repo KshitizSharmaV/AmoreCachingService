@@ -1,51 +1,75 @@
 import asyncio
-from redis.client import Redis
 from datetime import datetime
 import time
 from google.cloud import firestore
-
 from ProjectConf.FirestoreConf import async_db
-
-from Gateways.RecentChatsGateway import RecentChats_Unmatch_Delete_Chat
-from Gateways.LikesDislikesGatewayEXT import LikesDislikes_delete_record_from_redis, LikesDislikes_async_store_swipe_task, LikesDislikes_fetch_users_given_swipes
+from Gateways.LikesDislikesGatewayEXT import LikesDislikes_delete_record_from_redis, \
+    LikesDislikes_async_store_swipe_task, LikesDislikes_fetch_users_given_swipes
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
 from Gateways.NotificationGateway import Notification_design_and_multicast
-
 from ProjectConf.RedisConf import redis_client
-
 from Utilities.LogSetup import configure_logger
 
 logger = configure_logger(__name__)
 
+
 async def MatchUnmatch_get_match_unmatch_nomatch_for_user(userId: str):
-    return await asyncio.gather(*[
-        MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, childCollectionName=cc_name) for cc_name
-        in ["Match", "Unmatch", "NoMatch"]])
+    """
+    Get match unmatch and nomatch for a user id
+
+    Params:
+        userId
+    
+    Returns:
+        List of ids
+    """
+    return await asyncio.gather(
+        *[MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=userId, childCollectionName=cc_name) for cc_name in
+          ["Match", "Unmatch", "NoMatch"]])
 
 
 async def MatchUnmatch_store_match_or_nomatch(currentUserId=None, swipedUserId=None, match_status: str = None):
+    """
+    Write Match Unmatch to firestore and redi
+    
+    Params:
+        currentUserId 
+        swipedUserId
+        match_status
+
+    Returns:
+        Boolean value
+    """
     try:
         # Write to Firestore
-        query_current = async_db.collection("LikesDislikes").document(currentUserId).collection(match_status).document(swipedUserId)
+        query_current = async_db.collection("LikesDislikes").document(currentUserId).collection(match_status).document(
+            swipedUserId)
         await query_current.set({"id": swipedUserId, "timestamp": time.time()})
-
-        query_other = async_db.collection("LikesDislikes").document(swipedUserId).collection(match_status).document(currentUserId)
+        query_other = async_db.collection("LikesDislikes").document(swipedUserId).collection(match_status).document(
+            currentUserId)
         await query_other.set({"id": currentUserId, "timestamp": time.time()})
-
         logger.info(f"Stored {match_status} in Firestore for current: {currentUserId} and swiped: {swipedUserId}")
-
-        # Write Match to redis
         redis_client.sadd(f"MatchUnmatch:{currentUserId}:{match_status}", swipedUserId)
-
         redis_client.sadd(f"MatchUnmatch:{swipedUserId}:{match_status}", currentUserId)
-
         logger.info(f"Stored {match_status} in Redis for current: {currentUserId} and swiped: {swipedUserId}")
+        return True
     except Exception as e:
         logger.error(f"Unable to store NoMatch {currentUserId} {swipedUserId}")
         logger.exception(e)
+        return False
 
 
 async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=None):
+    """
+    Once two users are matched, this function writes to RecentChats for users to start chattng
+
+    Param:
+        currentUserId
+        swipedUserId
+
+    Returns:
+        Bool
+    """
     try:
         # Fetch the user data for current user and swiped user id
         currentUserData = await ProfilesGateway_get_profile_by_ids(profileIdList=[currentUserId])
@@ -83,24 +107,40 @@ async def MatchUnmatch_write_to_recent_chats(currentUserId=None, swipedUserId=No
                          },
                          "otherUserUpdated": True,
                          "directMessageApproved": True})
+        return True
     except Exception as e:
         logger.error(f"Unable to write in recent chats after match {currentUserId} {swipedUserId}")
         logger.exception(e)
+        return False
 
 
 async def MatchUnmatch_send_message_notification(user_id=None):
-    date_str = datetime.today().strftime('%Y%m%d')
-    pay_load = {
-        'title':"You have a new Match 😍 !! ",
-        'body':"Let's break the 🧊 🔨",
-        'analytics_label': "Match" + date_str,
-        'badge_count':1,
-        'notification_image':None,
-        'aps_category':'Match',
-        'data':{'data':None}
-    }
-    await Notification_design_and_multicast(user_id=user_id, pay_load=pay_load, dry_run=False)
-    return 
+    """
+    Send match notification
+
+    Param: 
+        user_id: String
+    
+    Return: Bool
+    """
+    try:
+        date_str = datetime.today().strftime('%Y%m%d')
+        pay_load = {
+            'title': "You have a new Match 😍 !! ",
+            'body': "Let's break the 🧊 🔨",
+            'analytics_label': "Match" + date_str,
+            'badge_count': 1,
+            'notification_image': None,
+            'aps_category': 'Match',
+            'data': {'data': None}
+        }
+        await Notification_design_and_multicast(user_id=user_id, pay_load=pay_load, dry_run=False)
+        return True
+    except Exception as e:
+        logger.error(f"Unable to send Match/Unmatch notification for {user_id}")
+        logger.exception(e)
+        return False
+
 
 async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserId=None, currentUserSwipe=None):
     '''
@@ -116,7 +156,8 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
             : User gave a dislike no need to calculate a match
     '''
     try:
-        likesGivenBySwipedUser, dislikesGivenBySwipedUser, superlikesGivenBySwipedUser = await LikesDislikes_fetch_users_given_swipes(user_id=swipedUserId)
+        likesGivenBySwipedUser, dislikesGivenBySwipedUser, superlikesGivenBySwipedUser = await LikesDislikes_fetch_users_given_swipes(
+            user_id=swipedUserId)
 
         # If the swipe given is Likes or Superlikes
         if currentUserSwipe == "Likes" or currentUserSwipe == "Superlikes":
@@ -126,7 +167,8 @@ async def MatchUnmatch_check_match_between_users(currentUserId=None, swipedUserI
                 logger.info(f'{currentUserId} & {swipedUserId} swiped on each other, its a Match')
 
                 # Write Match to firestore and redis
-                await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId, match_status="Match")
+                await MatchUnmatch_store_match_or_nomatch(currentUserId=currentUserId, swipedUserId=swipedUserId,
+                                                          match_status="Match")
                 await MatchUnmatch_write_to_recent_chats(currentUserId=currentUserId, swipedUserId=swipedUserId)
                 await MatchUnmatch_send_message_notification(user_id=currentUserId)
                 await MatchUnmatch_send_message_notification(user_id=swipedUserId)
@@ -176,12 +218,15 @@ async def MatchUnmatch_fetch_userdata_from_firebase_or_redis(userId=None, childC
             return profileIds
         else:
             # If not fetch data from firestore & save it in cache
-            docs = async_db.collection("LikesDislikes").document(userId).collection(childCollectionName).order_by(u'timestamp', direction=firestore.Query.DESCENDING)
-            profileIds = await MatchUnmatch_store_match_unmatch_to_redis(docs=docs, userId=userId,childCollectionName=childCollectionName)
+            docs = async_db.collection("LikesDislikes").document(userId).collection(childCollectionName).order_by(
+                u'timestamp', direction=firestore.Query.DESCENDING)
+            profileIds = await MatchUnmatch_store_match_unmatch_to_redis(docs=docs, userId=userId,
+                                                                         childCollectionName=childCollectionName)
             logger.info(f"{redisBaseKey} fetched {len(profileIds)} profiles from firestore")
             return profileIds
     except Exception as e:
-        logger.error(f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch likes dislikes data from firestore/cache")
+        logger.error(
+            f"LikesDislikes:{userId}:{childCollectionName} Failure to fetch likes dislikes data from firestore/cache")
         logger.exception(e)
         return []
 
@@ -212,6 +257,8 @@ async def MatchUnmatch_fetch_data_from_redis(userId=None, childCollectionName=No
     Fetch match unmatch data from redis
         :param userId: user id
         :param childCollectionName: Match or Unmatch
+    Return 
+        List of profile
     """
     try:
         redisBaseKey = f"MatchUnmatch:{userId}:{childCollectionName}"
@@ -233,13 +280,15 @@ def MatchUnmatch_calculate_the_match(firstUserSwipe=None, secondUserSwipe=None):
             if secondUserSwipe == "Superlikes": return "Match"
             if secondUserSwipe == "Dislikes": return "NoMatch"
         elif firstUserSwipe == "Superlikes":
-            if secondUserSwipe == "Like": return "Match"
+            if secondUserSwipe == "Likes": return "Match"
             if secondUserSwipe == "Dislikes": return "NoMatch"
             if secondUserSwipe == "Superlikes": return "Match"
         elif firstUserSwipe == "Dislikes":
             if secondUserSwipe == "Superlikes": return "NoMatch"
             if secondUserSwipe == "Likes": return "NoMatch"
             if secondUserSwipe == "Dislikes": return "NoMatch"
+        else:
+            raise Exception("Invalid input for firstUserSwipe")
     except Exception as e:
         logger.error(f"Unable to calcualte the match {firstUserSwipe} {secondUserSwipe}")
         logger.exception(e)
@@ -258,15 +307,18 @@ async def MatchUnmatch_unmatch_two_users(current_user_id: str = None, other_user
     :return:
     """
     # sender
-    task_likes_dislikes_current_user = asyncio.create_task(MatchUnmatch_unmatch_single_user(current_user_id, other_user_id))
+    task_likes_dislikes_current_user = asyncio.create_task(
+        MatchUnmatch_unmatch_single_user(current_user_id, other_user_id))
     # receiver
-    task_likes_dislikes_other_user = asyncio.create_task(MatchUnmatch_unmatch_single_user(other_user_id, current_user_id))
-    task_recent_chats_current_user = asyncio.create_task(RecentChats_Unmatch_Delete_Chat(current_user_id, other_user_id))
+    task_likes_dislikes_other_user = asyncio.create_task(
+        MatchUnmatch_unmatch_single_user(other_user_id, current_user_id))
+    task_recent_chats_current_user = asyncio.create_task(
+        RecentChats_Unmatch_Delete_Chat(current_user_id, other_user_id))
     task_recent_chats_other_user = asyncio.create_task(RecentChats_Unmatch_Delete_Chat(other_user_id, current_user_id))
-    return await asyncio.gather(*[task_likes_dislikes_current_user, 
-                                task_likes_dislikes_other_user, 
-                                task_recent_chats_current_user,
-                                task_recent_chats_other_user])
+    return await asyncio.gather(*[task_likes_dislikes_current_user,
+                                  task_likes_dislikes_other_user,
+                                  task_recent_chats_current_user,
+                                  task_recent_chats_other_user])
 
 
 async def MatchUnmatch_unmatch_single_user(user_id_1: str = None, user_id_2: str = None):
@@ -302,38 +354,49 @@ async def MatchUnmatch_unmatch_single_user(user_id_1: str = None, user_id_2: str
             # Write in other firestore collection for user
             match_doc = match_doc.to_dict()
             await match_ref.delete()
-            unmatch_ref = async_db.collection('LikesDislikes').document(user_id_1).collection("Unmatch").document(user_id_2)
+            unmatch_ref = async_db.collection('LikesDislikes').document(user_id_1).collection("Unmatch").document(
+                user_id_2)
             await unmatch_ref.set(match_doc)
             # Delete Match from redis 
-            wasDeleteSuccessful = await MatchUnmatch_delete_record_from_redis(user_id_1=user_id_1, 
-                                                user_id_2 = user_id_2,
-                                                childCollectionName="Match")
+            wasDeleteSuccessful = await MatchUnmatch_delete_record_from_redis(user_id_1=user_id_1,
+                                                                              user_id_2=user_id_2,
+                                                                              childCollectionName="Match")
             # Write Unmatch to redis
-            redis_client.sadd(f"MatchUnmatch:{user_id_1}:Unmatch",user_id_2)
+            redis_client.sadd(f"MatchUnmatch:{user_id_1}:Unmatch", user_id_2)
 
             # Step 2: Delete from Likes or Superlikes in Given & Change to Dislikes
             # First try to delete from Given:Likes
-            wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_1, idToBeDeleted=user_id_2, childCollectionName="Given", swipeStatusBetweenUsers="Likes")
+            wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_1, idToBeDeleted=user_id_2,
+                                                                            childCollectionName="Given",
+                                                                            swipeStatusBetweenUsers="Likes")
             # If Id wasn't deleted above delete from Given:Superlikes
             if not wasDeleteSuccess:
-                wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_1, idToBeDeleted=user_id_2, childCollectionName="Given", swipeStatusBetweenUsers="Superlikes")
+                wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_1,
+                                                                                idToBeDeleted=user_id_2,
+                                                                                childCollectionName="Given",
+                                                                                swipeStatusBetweenUsers="Superlikes")
             # Store the given swipe in firestore and redis
-            _ = await LikesDislikes_async_store_swipe_task(firstUserId=user_id_1, 
-                                                secondUserId=user_id_2, 
-                                                childCollectionName="Given", 
-                                                swipeStatusBetweenUsers="Dislikes")
+            _ = await LikesDislikes_async_store_swipe_task(firstUserId=user_id_1,
+                                                           secondUserId=user_id_2,
+                                                           childCollectionName="Given",
+                                                           swipeStatusBetweenUsers="Dislikes")
 
             # Step 3: Delete from Likes or Superlikes in Received & Change to Dislikes
             # First try to delete from Received:Likes
-            wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_2, idToBeDeleted=user_id_1, childCollectionName="Received", swipeStatusBetweenUsers="Likes")
+            wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_2, idToBeDeleted=user_id_1,
+                                                                            childCollectionName="Received",
+                                                                            swipeStatusBetweenUsers="Likes")
             # If Id wasn't deleted above delete from Received:Superlikes
             if not wasDeleteSuccess:
-                wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_2, idToBeDeleted=user_id_1, childCollectionName="Received", swipeStatusBetweenUsers="Superlikes")
+                wasDeleteSuccess = await LikesDislikes_delete_record_from_redis(userId=user_id_2,
+                                                                                idToBeDeleted=user_id_1,
+                                                                                childCollectionName="Received",
+                                                                                swipeStatusBetweenUsers="Superlikes")
             # Store the received swipe in firestore and redis
-            _ = await LikesDislikes_async_store_swipe_task(firstUserId=user_id_2, 
-                                                secondUserId=user_id_1, 
-                                                childCollectionName="Received", 
-                                                swipeStatusBetweenUsers="Dislikes")
+            _ = await LikesDislikes_async_store_swipe_task(firstUserId=user_id_2,
+                                                           secondUserId=user_id_1,
+                                                           childCollectionName="Received",
+                                                           swipeStatusBetweenUsers="Dislikes")
 
             logger.info(f"Succesfully unmatched users {user_id_1} {user_id_2}")
         else:
@@ -345,7 +408,7 @@ async def MatchUnmatch_unmatch_single_user(user_id_1: str = None, user_id_2: str
         return False
 
 
-async def MatchUnmatch_delete_record_from_redis(user_id_1=None, user_id_2= None, childCollectionName=None):
+async def MatchUnmatch_delete_record_from_redis(user_id_1=None, user_id_2=None, childCollectionName=None):
     '''
     MatchUnmatch:{userId}:{childCollectionName} store Match or Unmatch in firestore for user
         : param user_id_1: user id 1
@@ -366,3 +429,21 @@ async def MatchUnmatch_delete_record_from_redis(user_id_1=None, user_id_2= None,
         logger.exception(e)
         return False
 
+
+async def RecentChats_Unmatch_Delete_Chat(user_id_1: str = None, user_id_2: str = None):
+    """
+    Delete the recent chat from firestore
+    :param user_id_1: Current User's UID
+    :param user_id_2: Other User's UID
+    :return:
+    """
+    try:
+        recent_chat_ref = async_db.collection('RecentChats').document(user_id_1).collection("Messages").document(
+            user_id_2)
+        await recent_chat_ref.delete()
+        logger.info(f"Delete the recent chat from firestore for {user_id_1} {user_id_2}")
+        return True
+    except Exception as e:
+        logger.error(e)
+        logger.error(f"Unable to delete the recent chat from firestore {user_id_1} {user_id_2}")
+        return False

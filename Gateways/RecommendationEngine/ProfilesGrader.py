@@ -4,7 +4,6 @@ import traceback
 
 import pandas as pd
 from google.cloud import firestore
-from redis import Redis
 
 from ProjectConf.FirestoreConf import async_db
 from Gateways.MatchUnmatchGateway import MatchUnmatch_fetch_userdata_from_firebase_or_redis
