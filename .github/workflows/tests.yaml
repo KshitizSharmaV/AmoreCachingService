@@ -13,6 +13,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FIRESTORE_DEV_SERVICE_ACCOUNT_KEY: ${{ secrets.FIRESTORE_DEV_SERVICE_ACCOUNT_KEY }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,7 +28,7 @@ jobs:
         python-version: "3.8"
 
     - name: Write the secret to a file
-      run: echo "${{ secrets.FIRESTORE_DEV_SERVICE_ACCOUNT_KEY }}" | base64 --decode > serviceAccountKey.json
+      run: echo $FIRESTORE_DEV_SERVICE_ACCOUNT_KEY | base64 --decode > serviceAccountKey.json
 
     - name: Install dependencies
       run: |
