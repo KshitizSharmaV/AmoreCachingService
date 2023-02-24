@@ -69,20 +69,45 @@ def recent_chat_update_handler(given_user_id=None):
             # Recent Chat data from Given User's RecentChats
             chat_data = chat.to_dict()
             chat_data = ChatConversation.from_dict(chat_data)
-            # Get the data for other user whose chat needs to be updated
-            profile_list = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[other_user_id]))
-            profile_list = profile_list.result()
-            if len(profile_list) == 0:
-                # If profile doesn't exist in redis
-                given_user_data = db.collection("Profiles").document(given_user_id).get().to_dict()
-            else:
-                given_user_data = profile_list.pop()
+            
+            # chat_data
+            # fromId: giver_id, remains same
+            # toId: other_user_id, remains same
+            # lastText: remains same
+            # timestamp: remains same
+            # user: other user data, CHANGES
+            ## firstName:other user first name
+            ## lastName:other user last name
+            ## image1:other user image
+            ## id:other user id
+            
+            
+            # Fetching profile data for given user id
+            given_user_id_list = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[given_user_id]))
+            given_user_id_list = given_user_id_list.result()
+            if len(given_user_id_list) == 0:
+                logger.error(f"No profile available for {given_user_id}")
+                return
+            given_user_data = given_user_id_list.pop()
             given_user_data["id"] = given_user_id
+
+            
+            # Fetching profile data for other user id
+            other_user_id_list = run_coroutine(ProfilesGateway_get_profile_by_ids(profileIdList=[other_user_id]))
+            other_user_id_list = other_user_id_list.result()
+            if len(other_user_id_list) == 0:
+                logger.error(f"No profile available for {other_user_id}")
+                return
+            other_user_data = other_user_id_list.pop()
+            other_user_data["id"] = other_user_id
+
             # Create data for other user's RecentChats
             chat_data_for_other_user = chat_data
+            # Person who sent the message
             chat_data_for_other_user.user = ChatUser.from_dict(given_user_data)
             chat_data_for_other_user.otherUserUpdated = True
             # Update the data for the other user
+            
             db.collection("RecentChats").document(other_user_id).collection("Messages").document(given_user_id).set(
                 asdict(chat_data_for_other_user))
             logger.info(f'RecentChats updated for {other_user_id}')
@@ -143,7 +168,7 @@ if __name__ == '__main__':
         logger.warning("Main:Un-suscribed from Messaging Service")
     finally:
         # Unsuscribe from all the listeners
-        print("Finally was executed")
+        logger.error("Finally was executed")
         logger.error("Error: Recent Chat Service was Unsubscribed")
         query_watch.unsubscribe()
     callback_done.set()
