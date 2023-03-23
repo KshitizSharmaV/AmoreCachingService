@@ -45,7 +45,7 @@ async def message_update_handler(given_user_id=None, other_user_id=None, chat_da
 
             # Send notification to the the device and user id
             task = asyncio.create_task(send_message_notification(chat_data_for_other_user=chat_data_for_other_user))
-            return asyncio.gather(*[task])
+            asyncio.gather(*[task])
         logger.info(f'{given_user_id} & {other_user_id}: written to message collection')
         return
     except Exception as e:
