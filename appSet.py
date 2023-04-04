@@ -7,7 +7,7 @@ from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislik
 from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
 from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_unlink_single_user
 from Gateways.RewindGateway import Rewind_task_function, get_last_given_swipe_from_firestore
-from Gateways.ReportProfile import Report_profile_task
+from Gateways.ReportProfile import Report_profile_task, ReportProfile_remove_recent_chats
 from Gateways.ProfilesGatewayEXT import Profiles_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
@@ -139,6 +139,8 @@ def report_profile():
         future = run_coroutine(
             MatchUnmatch_unlink_single_user(user_id_1=current_user_id, user_id_2=reported_profile_id,
                                             report_matched_user=report_matched_user))
+        future.result()
+        future = run_coroutine(ReportProfile_remove_recent_chats(current_user_id=current_user_id, other_user_id=reported_profile_id))
         future.result()
         logger.info(f"Successfully reported profile {reported_profile_id}")
         return jsonify({'status': 200})
