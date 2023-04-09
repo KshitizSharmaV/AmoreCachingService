@@ -1,11 +1,10 @@
 
 import pytest
-from unittest.mock import patch, AsyncMock, MagicMock
-import redis
-from datetime import datetime
+from unittest.mock import patch
 
 from Gateways.MatchUnmatchGateway import *
-from Tests.Utilities.test_base import async_mock_child, redis_test_set
+from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_delete_record_from_redis, RecentChats_Unmatch_Delete_Chat
+from Tests.Utilities.test_base import async_mock_child
 import asyncio
 from unittest.mock import call
 

@@ -149,7 +149,7 @@ async def LikesDislikes_async_store_swipe_task(firstUserId=None, secondUserId=No
             redis_client.zrem(f"LikesDislikes:{firstUserId}:{childCollectionName}:Likes", secondUserId)
             logger.info(f"Removed Like from {firstUserId} for {secondUserId}")
         redis_client.zadd(redisBaseKey, {secondUserId: swipe_timestamp})
-        logger.info(f"Added {swipeStatusBetweenUsers} from {firstUserId} for {secondUserId}")
+        logger.info(f"Added {childCollectionName} {swipeStatusBetweenUsers} from {firstUserId} for {secondUserId}")
         logger.info(f"{redisBaseKey} successfully stored {secondUserId} in firestore/redis")
         return True
     except Exception as e:
@@ -177,3 +177,23 @@ async def LikesDislikes_fetch_users_given_swipes(user_id):
         logger.error(f"Unable to fetch given swipes by user {user_id}")
         logger.exception(e)
         return False
+
+
+async def LikesDislikes_update_like_superlike_dislike(firstUserId=None, secondUserId=None, childCollectionName=None,
+                                                      from_swipe_status: list = None, to_swipe_status=None):
+    # First try to delete from Given:Likes
+    was_delete_success = await LikesDislikes_delete_record_from_redis(userId=firstUserId, idToBeDeleted=secondUserId,
+                                                                      childCollectionName=childCollectionName,
+                                                                      swipeStatusBetweenUsers=from_swipe_status[0])
+
+    # If Id wasn't deleted above delete from Given:Superlikes
+    if not was_delete_success and len(from_swipe_status) > 1:
+        _ = await LikesDislikes_delete_record_from_redis(userId=firstUserId,
+                                                         idToBeDeleted=secondUserId,
+                                                         childCollectionName=childCollectionName,
+                                                         swipeStatusBetweenUsers=from_swipe_status[1])
+    # Store the given swipe in firestore and redis
+    _ = await LikesDislikes_async_store_swipe_task(firstUserId=firstUserId,
+                                                   secondUserId=secondUserId,
+                                                   childCollectionName=childCollectionName,
+                                                   swipeStatusBetweenUsers=to_swipe_status)

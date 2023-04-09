@@ -17,8 +17,8 @@ amoreicon_image = "https://drive.google.com/file/d/1GPbFM842dpeu8XZXhN5oSm8dKPsU
 async def Notification_store_fcm_token_in_redis(fcm_data=None):
     """
     Store Notifications in Redis Cache.
-        - Write/Update current Notification data in Redis
-    :param profile: Notification Dict/JSON
+      - Write/Update current Notification data in Redis
+    :param fcm_data: FCM Token data
     
     :return: Status of store action as Boolean
     """
@@ -36,6 +36,23 @@ async def Notification_store_fcm_token_in_redis(fcm_data=None):
       logger.exception(f"{fcm_data}")
       logger.exception(e)
       return False
+
+async def Notification_delete_fcm_token_from_redis(fcm_data=None) -> bool:
+    """
+    Delete the FCM token for a user_id and device_id from Redis.
+    :param fcm_data: FCM Token data
+    :return: Status of store action as Boolean
+    """
+    try:
+        key = f"FCMTokens:{fcm_data['userId']}:{fcm_data['deviceId']}"
+        redis_client.delete(key)
+        logger.info(f"FCM token deleted from cache with key: {key}")
+        return True
+    except Exception as e:
+        logger.exception(f"Failed to delete FCM token for user {fcm_data['userId']} and device {fcm_data['deviceId']} from Redis")
+        logger.exception(e)
+        return False
+
 
 def Notification_fetch_fcm_token_docs_for_userId(user_id=None):
     """
@@ -246,14 +263,14 @@ def Notification_delete_fcm_token(user_id=None, fcm_token=None):
   """
   try:
     logger.info(f"Deleting FCMToken for {user_id}")
-    #TODO Deletes FCM Token record from redis
+    # Deletes FCM Token record from redis
     fcm_redis_query = f"@fcmToken:{fcm_token}"
     fcm_token_docs = redis_client.ft("idx:FCMTokens").search(Query(query_string=fcm_redis_query))
     for token_doc in fcm_token_docs:
       token_doc = json.loads(token_doc.json)
       key = f"FCMTokens:{token_doc['userId']}:{token_doc['deviceId']}"
       redis_client.json().forget(key)
-    #TODO Deletes the record from firestore
+    # Deletes the record from firestore
     doc_ref = db.collection('FCMTokens').document(user_id).collection('Devices').where(u'fcmToken', '==', fcm_token).get()
     for doc in doc_ref:
       db.delete(doc)

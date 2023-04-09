@@ -5,8 +5,9 @@ from Utilities.LogSetup import configure_logger
 
 from Gateways.LikesDislikesGateway import LikesDislikes_async_store_likes_dislikes_superlikes_for_user
 from Gateways.MatchUnmatchGateway import MatchUnmatch_unmatch_two_users
+from Gateways.MatchUnmatchGatewayEXT import MatchUnmatch_unlink_single_user
 from Gateways.RewindGateway import Rewind_task_function, get_last_given_swipe_from_firestore
-from Gateways.ReportProfile import Report_profile_task
+from Gateways.ReportProfile import Report_profile_task, ReportProfile_remove_recent_chats
 from Gateways.ProfilesGatewayEXT import Profiles_store_profiles
 from Gateways.MessagesGateway import match_two_profiles_for_direct_message
 from Gateways.ProfilesGateway import ProfilesGateway_get_profile_by_ids
@@ -52,7 +53,7 @@ def unmatch():
     try:
         current_user_id = request.get_json().get('current_user_id')
         other_user_id = request.get_json().get('other_user_id')
-        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
+        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id,
                                                         other_user_id=other_user_id))
         future.result()
         logger.info(f"Successfully Unmatched {current_user_id} and {other_user_id}")
@@ -132,10 +133,14 @@ def report_profile():
         reported_profile_id = request.get_json().get('other_user_id')
         reason_given = request.get_json().get('reasonGiven')
         description_given = request.get_json().get('descriptionGiven')
+        report_matched_user = False if request.get_json().get('reportMatchedUser') == 'false' else True
         status = Report_profile_task(current_user_id=current_user_id, reported_profile_id=reported_profile_id,
                                      reason_given=reason_given, description_given=description_given)
-        future = run_coroutine(MatchUnmatch_unmatch_two_users(current_user_id=current_user_id, 
-                                                    other_user_id=reported_profile_id))
+        future = run_coroutine(
+            MatchUnmatch_unlink_single_user(user_id_1=current_user_id, user_id_2=reported_profile_id,
+                                            report_matched_user=report_matched_user))
+        future.result()
+        future = run_coroutine(ReportProfile_remove_recent_chats(current_user_id=current_user_id, other_user_id=reported_profile_id))
         future.result()
         logger.info(f"Successfully reported profile {reported_profile_id}")
         return jsonify({'status': 200})
