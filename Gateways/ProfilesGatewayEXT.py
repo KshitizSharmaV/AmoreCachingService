@@ -47,3 +47,24 @@ def Profiles_calculate_geo_hash_from_radius(radius=None):
     else:
         return "geohash1"
 
+
+async def Profiles_store_profile_filters(profile_id=None, filter_data={}):
+    """
+    Store Profile Filters in Redis Cache.
+        - Write/Update current Profile Filters data in Redis
+
+    :param profile_id: Profile id string
+    :param filter_data: Profile Filter Dict/JSON
+
+    :return: Status of store action as Boolean
+    """
+    try:
+        key = f"filter:{profile_id}"
+        redis_client.json().set(key, Path.root_path(), filter_data)
+        logger.info(f"Profile Filters stored/updated in cache with key: {key}")
+        return True
+    except Exception as e:
+        logger.exception(f"{profile_id}: Profile Filter Store failed")
+        logger.exception(f"{profile_id}")
+        logger.exception(e)
+        return False
